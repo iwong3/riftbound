@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/riftbound/static/css/main.345ef473.css",
-    "main.js": "/riftbound/static/js/main.747df775.js",
+    "main.js": "/riftbound/static/js/main.5eff88cf.js",
     "index.html": "/riftbound/index.html",
     "main.345ef473.css.map": "/riftbound/static/css/main.345ef473.css.map",
-    "main.747df775.js.map": "/riftbound/static/js/main.747df775.js.map"
+    "main.5eff88cf.js.map": "/riftbound/static/js/main.5eff88cf.js.map"
   },
   "entrypoints": [
     "static/css/main.345ef473.css",
-    "static/js/main.747df775.js"
+    "static/js/main.5eff88cf.js"
   ]
 }
