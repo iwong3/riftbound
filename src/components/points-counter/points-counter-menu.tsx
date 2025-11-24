@@ -1,21 +1,25 @@
 import { Box, IconButton } from "@mui/material";
 import {
-  IconHistory,
   IconLayout2,
+  IconLayoutList,
+  IconPlus,
   IconRefresh,
   IconSettings,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
+import { GOLD_COLOR } from "./constants";
+import { MatchHistoryDialog } from "./match-history-dialog";
 import { PointsCounterSettings } from "./points-counter-settings";
 import { usePointsCounterStore } from "./points-counter-store";
 
 export const PointsCounterMenu = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { resetPoints, layoutVersion, setLayoutVersion } = usePointsCounterStore(
+  const [matchHistoryOpen, setMatchHistoryOpen] = useState(false);
+  const { nextGame, layoutVersion, setLayoutVersion } = usePointsCounterStore(
     useShallow((state) => ({
-      resetPoints: state.resetPoints,
+      nextGame: state.nextGame,
       layoutVersion: state.layoutVersion,
       setLayoutVersion: state.setLayoutVersion,
     }))
@@ -26,8 +30,11 @@ export const PointsCounterMenu = () => {
   };
 
   const handleMatchHistory = () => {
-    // TODO: Implement match history
-    console.log("Match history clicked");
+    setMatchHistoryOpen(true);
+  };
+
+  const handleNextGame = () => {
+    nextGame();
   };
 
   const handleToggleLayout = () => {
@@ -43,7 +50,7 @@ export const PointsCounterMenu = () => {
         width: "100%",
         padding: 1,
         boxSizing: "border-box",
-        backgroundColor: "#bc9a53",
+        backgroundColor: GOLD_COLOR,
       }}
     >
       {/* Left Side - Layout Toggle */}
@@ -67,17 +74,18 @@ export const PointsCounterMenu = () => {
           gap: 1,
         }}
       >
-        {/* Reset - Leftmost of right side */}
+        {/* Next Game - Leftmost of right side */}
         <IconButton
-          onClick={resetPoints}
+          onClick={handleNextGame}
           sx={{
             color: "#000",
             "&:hover": {
               backgroundColor: "rgba(0, 0, 0, 0.1)",
             },
           }}
+          title="Next Game"
         >
-          <IconRefresh size={24} />
+          <IconPlus size={24} />
         </IconButton>
 
         {/* Match History */}
@@ -89,8 +97,9 @@ export const PointsCounterMenu = () => {
               backgroundColor: "rgba(0, 0, 0, 0.1)",
             },
           }}
+          title="Match History"
         >
-          <IconHistory size={24} />
+          <IconLayoutList size={24} />
         </IconButton>
 
         {/* Settings - Rightmost */}
@@ -111,6 +120,12 @@ export const PointsCounterMenu = () => {
       <PointsCounterSettings
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+      />
+
+      {/* Match History Dialog */}
+      <MatchHistoryDialog
+        open={matchHistoryOpen}
+        onClose={() => setMatchHistoryOpen(false)}
       />
     </Box>
   );

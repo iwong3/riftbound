@@ -13,11 +13,13 @@ import { useShallow } from "zustand/react/shallow";
 import { Player, usePointsCounterStore } from "./points-counter-store";
 import { PointsIndicator } from "./points-indicator";
 
-// Constants
-const GOLD_COLOR = "#bc9a53";
-const GOLD_COLOR_DARK = "#a6894a";
-const RED_COLOR = "#C1121F";
-const GREEN_COLOR = "#008000";
+import {
+  BLUE_COLOR,
+  GOLD_COLOR,
+  GOLD_COLOR_DARK,
+  GREEN_COLOR,
+  RED_COLOR,
+} from "./constants";
 
 // Common styles
 const playerNameStyles = {
@@ -311,7 +313,7 @@ export const PlayerTracker = ({
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: "#19425b",
+            backgroundColor: BLUE_COLOR,
             border: `2px solid ${GOLD_COLOR}`,
           },
         }}

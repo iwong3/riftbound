@@ -10,15 +10,18 @@ import {
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
+import { LegendName } from "../../helpers/legends";
+import {
+  BLUE_COLOR,
+  GOLD_COLOR,
+  GOLD_COLOR_DARK,
+  GREEN_COLOR,
+  RED_COLOR,
+} from "./constants";
+import { LegendIcon } from "./legend-icon";
+import { LegendSelectorDialog } from "./legend-selector-dialog";
 import { Player, usePointsCounterStore } from "./points-counter-store";
 import { PointsIndicatorHorizontal } from "./points-indicator-horizontal";
-
-// Constants - Colors
-const GOLD_COLOR = "#bc9a53";
-const GOLD_COLOR_DARK = "#a6894a";
-const RED_COLOR = "#C1121F";
-const GREEN_COLOR = "#008000";
-const BLUE_COLOR = "#19425b";
 
 // Constants - Sizes
 const FONT_SIZE_PLAYER_NAME = 18;
@@ -26,7 +29,7 @@ const FONT_SIZE_BUTTON_SYMBOL = 48;
 const FONT_SIZE_CENTER_SCORE = 48;
 const FONT_SIZE_CENTER_NAME = 14;
 
-const CENTER_SCORE_CIRCLE_SIZE = 75;
+const CENTER_SCORE_SIZE = 64;
 const CENTER_SCORE_BORDER_WIDTH = 3;
 const BUTTON_BORDER_WIDTH = 1;
 const BUTTON_ASPECT_RATIO = "1.5";
@@ -47,6 +50,96 @@ type PointsCounterV2Props = {
 type PlayerControlsProps = {
   player: Player;
   isMirrored?: boolean;
+};
+
+type CenterScoreDisplayProps = {
+  player: Player;
+  isRotated?: boolean;
+};
+
+const CenterScoreDisplay = ({
+  player,
+  isRotated = false,
+}: CenterScoreDisplayProps) => {
+  const [legendDialogOpen, setLegendDialogOpen] = useState(false);
+  const { setPlayerLegend } = usePointsCounterStore(
+    useShallow((state) => ({
+      setPlayerLegend: state.setPlayerLegend,
+    }))
+  );
+
+  const handleLegendClick = () => {
+    setLegendDialogOpen(true);
+  };
+
+  const handleSelectLegend = (legend: LegendName | null) => {
+    setPlayerLegend(player.id, legend);
+  };
+
+  return (
+    <>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: SPACING_GAP_SMALL,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: SPACING_GAP_SMALL,
+            ...(isRotated && { transform: "rotate(180deg)" }),
+          }}
+        >
+          {/* Legend Icon - Always displayed, clickable */}
+          <LegendIcon
+            legend={player.legend}
+            size={CENTER_SCORE_SIZE}
+            onClick={handleLegendClick}
+            showPlaceholder={true}
+          />
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              width: CENTER_SCORE_SIZE,
+              height: CENTER_SCORE_SIZE,
+              minWidth: CENTER_SCORE_SIZE,
+              minHeight: CENTER_SCORE_SIZE,
+              borderRadius: 1,
+              backgroundColor: "transparent",
+              border: `${CENTER_SCORE_BORDER_WIDTH}px double ${GOLD_COLOR}`,
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: FONT_SIZE_CENTER_SCORE,
+                fontWeight: "bold",
+                color: GOLD_COLOR,
+                textAlign: "center",
+                lineHeight: 1,
+              }}
+            >
+              {player.points}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      <LegendSelectorDialog
+        open={legendDialogOpen}
+        onClose={() => setLegendDialogOpen(false)}
+        selectedLegend={player.legend}
+        onSelectLegend={handleSelectLegend}
+        playerName={player.name}
+      />
+    </>
+  );
 };
 
 const PlayerControls = ({
@@ -324,9 +417,10 @@ const PlayerControls = ({
 
 export const PointsCounterV2 = ({ players }: PointsCounterV2Props) => {
   // For mirrored layout: top players are opponents, bottom players are "me"
-  // With 2 players: Player 1 (top/opponent), Player 2 (bottom/me)
-  const topPlayers = players.slice(0, Math.ceil(players.length / 2));
-  const bottomPlayers = players.slice(Math.ceil(players.length / 2));
+  // With 2 players: Player 2 (top/opponent), Player 1 (bottom/me)
+  // Reverse order so bottom player is player 1
+  const bottomPlayers = players.slice(0, Math.ceil(players.length / 2));
+  const topPlayers = players.slice(Math.ceil(players.length / 2));
 
   // Get the first player from each group for the center score display
   const topPlayer = topPlayers[0];
@@ -338,7 +432,6 @@ export const PointsCounterV2 = ({ players }: PointsCounterV2Props) => {
         display: "flex",
         flexDirection: "column",
         width: "100%",
-        // paddingY: 4,
         boxSizing: "border-box",
         minHeight: "100vh",
       }}
@@ -364,104 +457,17 @@ export const PointsCounterV2 = ({ players }: PointsCounterV2Props) => {
           justifyContent: "center",
           alignItems: "center",
           gap: SPACING_GAP_MEDIUM,
+          height: "25vh",
         }}
       >
         {/* Bottom Player Score - Left */}
         {bottomPlayer && (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: SPACING_GAP_SMALL,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: FONT_SIZE_CENTER_NAME,
-                fontWeight: "bold",
-                color: GOLD_COLOR,
-              }}
-            >
-              {bottomPlayer.name}
-            </Typography>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                width: CENTER_SCORE_CIRCLE_SIZE,
-                height: CENTER_SCORE_CIRCLE_SIZE,
-                minWidth: CENTER_SCORE_CIRCLE_SIZE,
-                minHeight: CENTER_SCORE_CIRCLE_SIZE,
-                borderRadius: "50%",
-                backgroundColor: "transparent",
-                border: `${CENTER_SCORE_BORDER_WIDTH}px double ${GOLD_COLOR}`,
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: FONT_SIZE_CENTER_SCORE,
-                  fontWeight: "bold",
-                  color: GOLD_COLOR,
-                  textAlign: "center",
-                  lineHeight: 1,
-                }}
-              >
-                {bottomPlayer.points}
-              </Typography>
-            </Box>
-          </Box>
+          <CenterScoreDisplay player={bottomPlayer} isRotated={false} />
         )}
 
         {/* Top Player Score - Right */}
         {topPlayer && (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: SPACING_GAP_SMALL,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: FONT_SIZE_CENTER_NAME,
-                fontWeight: "bold",
-                color: GOLD_COLOR,
-                transform: "rotate(180deg)",
-              }}
-            >
-              {topPlayer.name}
-            </Typography>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                width: CENTER_SCORE_CIRCLE_SIZE,
-                height: CENTER_SCORE_CIRCLE_SIZE,
-                minWidth: CENTER_SCORE_CIRCLE_SIZE,
-                minHeight: CENTER_SCORE_CIRCLE_SIZE,
-                borderRadius: "50%",
-                backgroundColor: "transparent",
-                border: `${CENTER_SCORE_BORDER_WIDTH}px double ${GOLD_COLOR}`,
-                transform: "rotate(180deg)",
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: FONT_SIZE_CENTER_SCORE,
-                  fontWeight: "bold",
-                  color: GOLD_COLOR,
-                  textAlign: "center",
-                  lineHeight: 1,
-                }}
-              >
-                {topPlayer.points}
-              </Typography>
-            </Box>
-          </Box>
+          <CenterScoreDisplay player={topPlayer} isRotated={true} />
         )}
       </Box>
 

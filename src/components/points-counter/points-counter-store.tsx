@@ -6,11 +6,17 @@ import {
   getFromCache,
   saveInCache,
 } from "../../helpers/cache";
+import { LegendName } from "../../helpers/legends";
+import {
+  MatchResult,
+  saveMatchToHistory,
+} from "../../helpers/match-history";
 
 export type Player = {
   id: string;
   name: string;
   points: number;
+  legend: LegendName | null;
   teamId?: string; // For future team support
 };
 
@@ -25,11 +31,13 @@ type PointsCounterState = {
 type PointsCounterActions = {
   setNumPlayers: (num: number) => void;
   setPlayerName: (playerId: string, name: string) => void;
+  setPlayerLegend: (playerId: string, legend: LegendName | null) => void;
   setUpperLimit: (limit: number) => void;
   setLayoutVersion: (version: "v1" | "v2") => void;
   incrementPoints: (playerId: string) => void;
   decrementPoints: (playerId: string) => void;
   resetPoints: () => void;
+  nextGame: () => void;
   resetAll: () => void;
   resetAllSettings: () => void;
 };
@@ -38,16 +46,22 @@ const getPlayerNameCacheKey = (playerId: string) => {
   return `pointsCounterPlayerName_${playerId}`;
 };
 
+const getPlayerLegendCacheKey = (playerId: string) => {
+  return `pointsCounterPlayerLegend_${playerId}`;
+};
+
 const createInitialPlayers = (numPlayers: number): Player[] => {
   const players: Player[] = [];
   for (let i = 0; i < numPlayers; i++) {
     const playerId = `player-${i + 1}`;
     const defaultName = `Player ${i + 1}`;
     const cachedName = getFromCache(getPlayerNameCacheKey(playerId), defaultName);
+    const cachedLegend = getFromCache(getPlayerLegendCacheKey(playerId), "") as LegendName | null;
     players.push({
       id: playerId,
       name: cachedName,
       points: 0,
+      legend: cachedLegend || null,
     });
   }
   return players;
@@ -103,6 +117,16 @@ export const usePointsCounterStore = create<
     saveInCache(getPlayerNameCacheKey(playerId), name);
   },
 
+  setPlayerLegend: (playerId: string, legend: LegendName | null) => {
+    set((state) => ({
+      players: state.players.map((player) =>
+        player.id === playerId ? { ...player, legend } : player
+      ),
+    }));
+    // Save to cache
+    saveInCache(getPlayerLegendCacheKey(playerId), legend || "");
+  },
+
   setUpperLimit: (limit: number) => {
     // Enforce min (8) and max (13) limits
     const clampedLimit = Math.max(8, Math.min(13, limit));
@@ -141,10 +165,40 @@ export const usePointsCounterStore = create<
     }));
   },
 
+  nextGame: () => {
+    set((state) => {
+      // Check if any player has reached the win condition
+      const hasWinner = state.players.some(
+        (player) => player.points >= state.upperLimit
+      );
+
+      if (hasWinner) {
+        // Save match to history
+        const match: MatchResult = {
+          id: `match-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          players: state.players.map((player) => ({
+            id: player.id,
+            name: player.name,
+            legend: player.legend,
+            points: player.points,
+          })),
+          finishedAt: new Date().toISOString(),
+        };
+        saveMatchToHistory(match);
+      }
+
+      // Reset points to 0
+      return {
+        players: state.players.map((player) => ({ ...player, points: 0 })),
+      };
+    });
+  },
+
   resetAll: () => {
-    // Clear cached player names
+    // Clear cached player names and legends
     for (let i = 1; i <= 4; i++) {
       clearFromCache(getPlayerNameCacheKey(`player-${i}`));
+      clearFromCache(getPlayerLegendCacheKey(`player-${i}`));
     }
     set(() => ({
       ...initialState,

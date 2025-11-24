@@ -1,4 +1,5 @@
 import { Box, Typography } from "@mui/material";
+import { GOLD_COLOR, WHITE_COLOR } from "./constants";
 
 type PointsIndicatorHorizontalProps = {
   currentPoints: number;
@@ -27,15 +28,17 @@ export const PointsIndicatorHorizontal = ({
         minWidth: circleSize,
         minHeight: circleSize,
         borderRadius: "50%",
-        backgroundColor: isActive ? "#bc9a53" : "transparent",
-        border: isActive ? "1px double #ffffff" : "1px double #bc9a53",
+        backgroundColor: isActive ? GOLD_COLOR : "transparent",
+        border: isActive
+          ? `1px solid ${WHITE_COLOR}`
+          : `1px solid ${GOLD_COLOR}`,
       }}
     >
       <Typography
         sx={{
           fontSize: circleFontSize,
           fontWeight: "bold",
-          color: isActive ? "#ffffff" : "#bc9a53",
+          color: isActive ? WHITE_COLOR : GOLD_COLOR,
           textAlign: "center",
           lineHeight: 1,
           display: "flex",
