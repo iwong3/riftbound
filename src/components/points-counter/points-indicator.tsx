@@ -101,7 +101,6 @@ export const PointsIndicator = ({
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          //   gap: 1,
           marginY: 0.5,
         }}
       >
@@ -111,7 +110,7 @@ export const PointsIndicator = ({
         })}
       </Box>
 
-      {/* Second Column: Always 10 circles, but only show numbers 9-13 */}
+      {/* Second Column: Always 9 circles, but only show numbers 9-13 */}
       {/* Display highest number at top (13, 12, 11, 10, 9) */}
       <Box
         key={`second-col-${upperLimit}`}

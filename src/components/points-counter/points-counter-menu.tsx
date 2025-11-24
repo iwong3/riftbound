@@ -1,5 +1,10 @@
 import { Box, IconButton } from "@mui/material";
-import { IconHistory, IconRefresh, IconSettings } from "@tabler/icons-react";
+import {
+  IconHistory,
+  IconLayout2,
+  IconRefresh,
+  IconSettings,
+} from "@tabler/icons-react";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -8,9 +13,11 @@ import { usePointsCounterStore } from "./points-counter-store";
 
 export const PointsCounterMenu = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { resetPoints } = usePointsCounterStore(
+  const { resetPoints, layoutVersion, setLayoutVersion } = usePointsCounterStore(
     useShallow((state) => ({
       resetPoints: state.resetPoints,
+      layoutVersion: state.layoutVersion,
+      setLayoutVersion: state.setLayoutVersion,
     }))
   );
 
@@ -23,11 +30,15 @@ export const PointsCounterMenu = () => {
     console.log("Match history clicked");
   };
 
+  const handleToggleLayout = () => {
+    setLayoutVersion(layoutVersion === "v1" ? "v2" : "v1");
+  };
+
   return (
     <Box
       sx={{
         display: "flex",
-        justifyContent: "flex-end",
+        justifyContent: "space-between",
         alignItems: "center",
         width: "100%",
         padding: 1,
@@ -35,6 +46,20 @@ export const PointsCounterMenu = () => {
         backgroundColor: "#bc9a53",
       }}
     >
+      {/* Left Side - Layout Toggle */}
+      <IconButton
+        onClick={handleToggleLayout}
+        sx={{
+          color: "#000",
+          "&:hover": {
+            backgroundColor: "rgba(0, 0, 0, 0.1)",
+          },
+        }}
+        title={`Switch to ${layoutVersion === "v1" ? "v2" : "v1"} layout`}
+      >
+        <IconLayout2 size={24} />
+      </IconButton>
+
       {/* Right Side Menu - Rightmost to Leftmost: Settings, Match History, Reset */}
       <Box
         sx={{

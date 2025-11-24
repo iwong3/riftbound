@@ -5,9 +5,11 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  TextField,
   Typography,
 } from "@mui/material";
 import { IconMinus, IconPlus, IconRefresh } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { usePointsCounterStore } from "./points-counter-store";
@@ -21,13 +23,35 @@ export const PointsCounterSettings = ({
   open,
   onClose,
 }: PointsCounterSettingsProps) => {
-  const { upperLimit, setUpperLimit, resetAllSettings } = usePointsCounterStore(
+  const {
+    upperLimit,
+    setUpperLimit,
+    resetAllSettings,
+    players,
+    setPlayerName,
+  } = usePointsCounterStore(
     useShallow((state) => ({
       upperLimit: state.upperLimit,
       setUpperLimit: state.setUpperLimit,
       resetAllSettings: state.resetAllSettings,
+      players: state.players,
+      setPlayerName: state.setPlayerName,
     }))
   );
+
+  // Local state for player names to allow controlled inputs
+  const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
+
+  // Initialize player names when dialog opens
+  useEffect(() => {
+    if (open) {
+      const names: Record<string, string> = {};
+      players.forEach((player) => {
+        names[player.id] = player.name;
+      });
+      setPlayerNames(names);
+    }
+  }, [open, players]);
 
   const MIN_LIMIT = 8;
   const MAX_LIMIT = 13;
@@ -50,6 +74,27 @@ export const PointsCounterSettings = ({
 
   const handleResetAll = () => {
     resetAllSettings();
+  };
+
+  const handlePlayerNameChange = (playerId: string, name: string) => {
+    setPlayerNames((prev) => ({ ...prev, [playerId]: name }));
+  };
+
+  const handlePlayerNameBlur = (playerId: string) => {
+    const name = playerNames[playerId] ?? "";
+    const trimmedName = name.trim();
+    if (trimmedName) {
+      setPlayerName(playerId, trimmedName);
+    } else {
+      // If empty, restore the original name
+      const originalPlayer = players.find((p) => p.id === playerId);
+      if (originalPlayer) {
+        setPlayerNames((prev) => ({
+          ...prev,
+          [playerId]: originalPlayer.name,
+        }));
+      }
+    }
   };
 
   return (
@@ -165,6 +210,64 @@ export const PointsCounterSettings = ({
               >
                 <IconPlus size={24} />
               </IconButton>
+            </Box>
+          </Box>
+
+          {/* Player Names Section */}
+          <Box>
+            <Typography
+              sx={{ marginBottom: 2, fontWeight: "bold", color: "#bc9a53" }}
+            >
+              Player Names
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              {players.map((player, index) => (
+                <TextField
+                  key={player.id}
+                  label={`Player ${index + 1} Name`}
+                  value={
+                    playerNames[player.id] !== undefined
+                      ? playerNames[player.id]
+                      : player.name
+                  }
+                  onChange={(e) =>
+                    handlePlayerNameChange(player.id, e.target.value)
+                  }
+                  onBlur={() => handlePlayerNameBlur(player.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handlePlayerNameBlur(player.id);
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#bc9a53",
+                      "& fieldset": {
+                        borderColor: "#bc9a53",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "#bc9a53",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#bc9a53",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#bc9a53",
+                      "&.Mui-focused": {
+                        color: "#bc9a53",
+                      },
+                    },
+                  }}
+                />
+              ))}
             </Box>
           </Box>
 

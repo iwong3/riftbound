@@ -1,0 +1,67 @@
+import { Box, Typography } from "@mui/material";
+
+type PointsIndicatorHorizontalProps = {
+  currentPoints: number;
+  upperLimit: number;
+};
+
+export const PointsIndicatorHorizontal = ({
+  currentPoints,
+  upperLimit,
+}: PointsIndicatorHorizontalProps) => {
+  // Generate array of numbers from 0 to upperLimit
+  const numbers = Array.from({ length: upperLimit + 1 }, (_, i) => i);
+
+  const circleSize = 22;
+  const circleFontSize = 11;
+
+  const renderCircle = (num: number, isActive: boolean) => (
+    <Box
+      key={`circle-${num}`}
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: circleSize,
+        height: circleSize,
+        minWidth: circleSize,
+        minHeight: circleSize,
+        borderRadius: "50%",
+        backgroundColor: isActive ? "#bc9a53" : "transparent",
+        border: isActive ? "1px double #ffffff" : "1px double #bc9a53",
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: circleFontSize,
+          fontWeight: "bold",
+          color: isActive ? "#ffffff" : "#bc9a53",
+          textAlign: "center",
+          lineHeight: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {num}
+      </Typography>
+    </Box>
+  );
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        width: "100%",
+      }}
+    >
+      {numbers.map((num) => {
+        const isActive = currentPoints === num;
+        return renderCircle(num, isActive);
+      })}
+    </Box>
+  );
+};

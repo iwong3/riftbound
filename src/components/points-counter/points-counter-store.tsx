@@ -19,12 +19,14 @@ type PointsCounterState = {
   numPlayers: number; // 2, 3, or 4
   gameMode: "1v1" | "2v2" | "1v1v1v1"; // For future team support
   upperLimit: number; // Maximum points allowed
+  layoutVersion: "v1" | "v2"; // Layout version
 };
 
 type PointsCounterActions = {
   setNumPlayers: (num: number) => void;
   setPlayerName: (playerId: string, name: string) => void;
   setUpperLimit: (limit: number) => void;
+  setLayoutVersion: (version: "v1" | "v2") => void;
   incrementPoints: (playerId: string) => void;
   decrementPoints: (playerId: string) => void;
   resetPoints: () => void;
@@ -52,6 +54,7 @@ const createInitialPlayers = (numPlayers: number): Player[] => {
 };
 
 const UPPER_LIMIT_CACHE_KEY = "pointsCounterUpperLimit";
+const LAYOUT_VERSION_CACHE_KEY = "pointsCounterLayoutVersion";
 
 const getInitialUpperLimit = (): number => {
   const cached = parseInt(getFromCache(UPPER_LIMIT_CACHE_KEY, "8"), 10) || 8;
@@ -59,11 +62,17 @@ const getInitialUpperLimit = (): number => {
   return Math.max(8, Math.min(13, cached));
 };
 
+const getInitialLayoutVersion = (): "v1" | "v2" => {
+  const cached = getFromCache(LAYOUT_VERSION_CACHE_KEY, "v2");
+  return cached === "v1" ? "v1" : "v2";
+};
+
 const initialState: PointsCounterState = {
   players: createInitialPlayers(2),
   numPlayers: 2,
   gameMode: "1v1",
   upperLimit: getInitialUpperLimit(),
+  layoutVersion: getInitialLayoutVersion(),
 };
 
 export const usePointsCounterStore = create<
@@ -99,6 +108,11 @@ export const usePointsCounterStore = create<
     const clampedLimit = Math.max(8, Math.min(13, limit));
     set(() => ({ upperLimit: clampedLimit }));
     saveInCache(UPPER_LIMIT_CACHE_KEY, clampedLimit.toString());
+  },
+
+  setLayoutVersion: (version: "v1" | "v2") => {
+    set(() => ({ layoutVersion: version }));
+    saveInCache(LAYOUT_VERSION_CACHE_KEY, version);
   },
 
   incrementPoints: (playerId: string) => {
@@ -143,8 +157,10 @@ export const usePointsCounterStore = create<
   resetAllSettings: () => {
     set(() => ({
       upperLimit: 8,
+      layoutVersion: "v2",
     }));
     saveInCache(UPPER_LIMIT_CACHE_KEY, "8");
+    saveInCache(LAYOUT_VERSION_CACHE_KEY, "v2");
   },
 }));
 
