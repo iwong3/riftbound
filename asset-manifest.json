@@ -1,13 +1,29 @@
 {
   "files": {
     "main.css": "/riftbound/static/css/main.345ef473.css",
-    "main.js": "/riftbound/static/js/main.e4d00d1e.js",
+    "main.js": "/riftbound/static/js/main.f67e8584.js",
+    "static/media/miss-fortune-icon.jpg": "/riftbound/static/media/miss-fortune-icon.64abfd58ef3653e15a67.jpg",
+    "static/media/darius-icon.jpg": "/riftbound/static/media/darius-icon.03120806fa2a46a16cb0.jpg",
+    "static/media/sett-icon.jpg": "/riftbound/static/media/sett-icon.ea526a5cc432a75bbae5.jpg",
+    "static/media/annie-icon.jpg": "/riftbound/static/media/annie-icon.f07766d9b7261a822886.jpg",
+    "static/media/ahri-icon.jpg": "/riftbound/static/media/ahri-icon.dd9b1b73bd0bade2361e.jpg",
+    "static/media/garen-icon.jpg": "/riftbound/static/media/garen-icon.9f3164837bd4c224320c.jpg",
+    "static/media/viktor-icon.jpg": "/riftbound/static/media/viktor-icon.3d5bae08d5ac30c370ed.jpg",
+    "static/media/volibear-icon.png": "/riftbound/static/media/volibear-icon.0ec7ed58864b1c4464f9.png",
+    "static/media/kaisa-icon.jpg": "/riftbound/static/media/kaisa-icon.c2f6bdc38d1f6afbbc1b.jpg",
+    "static/media/master-yi-icon.jpg": "/riftbound/static/media/master-yi-icon.57e3455924c0d0b9e053.jpg",
+    "static/media/yasuo-icon.jpg": "/riftbound/static/media/yasuo-icon.59f6ace550992285df67.jpg",
+    "static/media/leona-icon.jpg": "/riftbound/static/media/leona-icon.77896f1b692c905f2982.jpg",
+    "static/media/teemo-icon.jpg": "/riftbound/static/media/teemo-icon.6cd382563a27b18b8a9a.jpg",
+    "static/media/lee-sin-icon.jpg": "/riftbound/static/media/lee-sin-icon.d24cf871fcbfc7371ec9.jpg",
+    "static/media/jinx-icon.jpg": "/riftbound/static/media/jinx-icon.ded869c64b76a8adc051.jpg",
+    "static/media/lux-icon.jpg": "/riftbound/static/media/lux-icon.797f86fddbdbb4ed45a9.jpg",
     "index.html": "/riftbound/index.html",
     "main.345ef473.css.map": "/riftbound/static/css/main.345ef473.css.map",
-    "main.e4d00d1e.js.map": "/riftbound/static/js/main.e4d00d1e.js.map"
+    "main.f67e8584.js.map": "/riftbound/static/js/main.f67e8584.js.map"
   },
   "entrypoints": [
     "static/css/main.345ef473.css",
-    "static/js/main.e4d00d1e.js"
+    "static/js/main.f67e8584.js"
   ]
 }
