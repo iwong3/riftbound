@@ -4,6 +4,7 @@
 
 - [ ] Add way to export match history (.csv)
 - [ ] Toggle for mirrored vs. normal
+- [ ] Add way to rotate screen
 - [ ] Adjust UX for bigger screens (tablet, pc)
 - [ ] Multiplayer (3 player, 4 player FFA, 2v2)
 - [ ] Add background for app, such as river in the middle
