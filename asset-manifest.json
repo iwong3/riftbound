@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/riftbound/static/css/main.31d5d8f3.css",
-    "main.js": "/riftbound/static/js/main.b68649c0.js",
+    "main.js": "/riftbound/static/js/main.3221cc89.js",
     "static/media/miss-fortune-icon.jpg": "/riftbound/static/media/miss-fortune-icon.64abfd58ef3653e15a67.jpg",
     "static/media/darius-icon.jpg": "/riftbound/static/media/darius-icon.03120806fa2a46a16cb0.jpg",
     "static/media/sett-icon.jpg": "/riftbound/static/media/sett-icon.ea526a5cc432a75bbae5.jpg",
@@ -18,12 +18,13 @@
     "static/media/lee-sin-icon.jpg": "/riftbound/static/media/lee-sin-icon.d24cf871fcbfc7371ec9.jpg",
     "static/media/jinx-icon.jpg": "/riftbound/static/media/jinx-icon.ded869c64b76a8adc051.jpg",
     "static/media/lux-icon.jpg": "/riftbound/static/media/lux-icon.797f86fddbdbb4ed45a9.jpg",
+    "static/media/riftbound-logo.svg": "/riftbound/static/media/riftbound-logo.dfb0fb55dcfa71963b657bf515c360ff.svg",
     "index.html": "/riftbound/index.html",
     "main.31d5d8f3.css.map": "/riftbound/static/css/main.31d5d8f3.css.map",
-    "main.b68649c0.js.map": "/riftbound/static/js/main.b68649c0.js.map"
+    "main.3221cc89.js.map": "/riftbound/static/js/main.3221cc89.js.map"
   },
   "entrypoints": [
     "static/css/main.31d5d8f3.css",
-    "static/js/main.b68649c0.js"
+    "static/js/main.3221cc89.js"
   ]
 }
