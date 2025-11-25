@@ -19,11 +19,12 @@ export const PointsCounterMenu = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [matchHistoryOpen, setMatchHistoryOpen] = useState(false);
   const [nextGameDialogOpen, setNextGameDialogOpen] = useState(false);
-  const { nextGame, nextGameInSeries, rollDiceForAll, bestOf } =
+  const { nextGame, nextGameInSeries, newSeries, rollDiceForAll, bestOf } =
     usePointsCounterStore(
       useShallow((state) => ({
         nextGame: state.nextGame,
         nextGameInSeries: state.nextGameInSeries,
+        newSeries: state.newSeries,
         rollDiceForAll: state.rollDiceForAll,
         bestOf: state.bestOf,
       }))
@@ -39,8 +40,8 @@ export const PointsCounterMenu = () => {
 
   const handleNextGame = () => {
     if (bestOf === 1) {
-      // For BO1, proceed directly
-      nextGameInSeries();
+      // For BO1, always create a new series (each game is its own series)
+      newSeries();
     } else {
       // For BO3+, show dialog
       setNextGameDialogOpen(true);

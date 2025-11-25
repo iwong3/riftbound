@@ -49,21 +49,26 @@ export const NextGameDialog = ({ open, onClose }: NextGameDialogProps) => {
   // Check if any player has already won the series
   // For BO3, need 2 wins. For BO5, need 3 wins. Formula: Math.ceil(bestOf / 2)
   const winsRequired = Math.ceil(bestOf / 2);
-  
+
   // Check if series is already won from previous games
   const hasSeriesWinnerFromPrevious = players.some(
     (player) => (seriesWins[player.id] || 0) >= winsRequired
   );
-  
+
   // Check if current game winner would win the series
   const currentGameWinnerWouldWinSeries =
     currentGameWinner &&
     (seriesWins[currentGameWinner.id] || 0) + 1 >= winsRequired;
-  
-  const hasSeriesWinner = hasSeriesWinnerFromPrevious || currentGameWinnerWouldWinSeries;
+
+  const hasSeriesWinner =
+    hasSeriesWinnerFromPrevious || currentGameWinnerWouldWinSeries;
 
   const handleNextGame = () => {
-    if (hasWinner) {
+    if (bestOf === 1) {
+      // BO1: Always create a new series (each game is its own series)
+      newSeries();
+    } else if (hasWinner) {
+      // BO3/BO5: Continue in the same series
       nextGameInSeries();
     } else {
       // Reset current game if no winner
@@ -120,7 +125,7 @@ export const NextGameDialog = ({ open, onClose }: NextGameDialogProps) => {
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: 2,
+            gap: 1,
           }}
         >
           <Typography
@@ -128,10 +133,9 @@ export const NextGameDialog = ({ open, onClose }: NextGameDialogProps) => {
               fontSize: 16,
               color: GOLD_COLOR,
               textAlign: "center",
-              marginBottom: 1,
             }}
           >
-            Game {currentGame} of Best of {bestOf}
+            Game {currentGame} of {bestOf}
           </Typography>
 
           {hasWinner && (
@@ -140,7 +144,7 @@ export const NextGameDialog = ({ open, onClose }: NextGameDialogProps) => {
                 fontSize: 14,
                 color: GOLD_COLOR,
                 textAlign: "center",
-                marginBottom: 2,
+                marginBottom: 1,
               }}
             >
               Current game will be saved to match history.
@@ -161,7 +165,8 @@ export const NextGameDialog = ({ open, onClose }: NextGameDialogProps) => {
             </Typography>
           )}
 
-          {!hasSeriesWinner && (
+          {bestOf === 1 ? (
+            // BO1: Just show "Next Game" button
             <Button
               onClick={handleNextGame}
               fullWidth
@@ -175,29 +180,49 @@ export const NextGameDialog = ({ open, onClose }: NextGameDialogProps) => {
                 },
               }}
             >
-              {hasWinner ? "Next Game" : "Reset Game"}
+              Next Game
             </Button>
-          )}
+          ) : (
+            // BO3/BO5: Show Next Game and New Series options
+            <>
+              {!hasSeriesWinner && (
+                <Button
+                  onClick={handleNextGame}
+                  fullWidth
+                  sx={{
+                    backgroundColor: GOLD_COLOR,
+                    color: "#000",
+                    fontWeight: "bold",
+                    paddingY: 1.5,
+                    "&:hover": {
+                      backgroundColor: "rgba(188, 154, 83, 0.8)",
+                    },
+                  }}
+                >
+                  {hasWinner ? "Next Game" : "Reset Game"}
+                </Button>
+              )}
 
-          <Button
-            onClick={handleNewSeries}
-            fullWidth
-            sx={{
-              backgroundColor: "transparent",
-              color: GOLD_COLOR,
-              fontWeight: "bold",
-              border: `2px solid ${GOLD_COLOR}`,
-              paddingY: 1.5,
-              "&:hover": {
-                backgroundColor: "rgba(188, 154, 83, 0.1)",
-              },
-            }}
-          >
-            New Series
-          </Button>
+              <Button
+                onClick={handleNewSeries}
+                fullWidth
+                sx={{
+                  backgroundColor: "transparent",
+                  color: GOLD_COLOR,
+                  fontWeight: "bold",
+                  border: `2px solid ${GOLD_COLOR}`,
+                  paddingY: 1.5,
+                  "&:hover": {
+                    backgroundColor: "rgba(188, 154, 83, 0.1)",
+                  },
+                }}
+              >
+                New Series
+              </Button>
+            </>
+          )}
         </Box>
       </DialogContent>
     </Dialog>
   );
 };
-

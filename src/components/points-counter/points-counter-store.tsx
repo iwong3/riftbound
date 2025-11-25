@@ -2,7 +2,12 @@ import { create } from "zustand";
 
 import { clearFromCache, getFromCache, saveInCache } from "../../helpers/cache";
 import { LegendName } from "../../helpers/legends";
-import { MatchResult, saveMatchToHistory } from "../../helpers/match-history";
+import {
+  deleteMatchFromHistory,
+  MatchResult,
+  saveMatchToHistory,
+  updateMatchInHistory,
+} from "../../helpers/match-history";
 
 export type Player = {
   id: string;
@@ -11,6 +16,7 @@ export type Player = {
   legend: LegendName | null;
   diceResult: number | null;
   diceRollCount: number; // Track number of rolls to force animation even for same value
+  turnOrder: number; // Turn order (1 or 2)
   teamId?: string; // For future team support
 };
 
@@ -23,6 +29,8 @@ type PointsCounterState = {
   currentGame: number; // Current game number in the series (1-indexed)
   seriesWins: Record<string, number>; // Player ID -> number of wins in current series
   seriesId: string; // Unique ID for the current series
+  lastSavedMatchId: string | null; // ID of the last automatically saved match
+  showWinDialog: boolean; // Whether to show the win dialog
 };
 
 type PointsCounterActions = {
@@ -37,12 +45,14 @@ type PointsCounterActions = {
   rollDice: (playerId: string) => void;
   rollDiceForAll: () => void;
   clearDice: (playerId: string) => void;
+  swapTurnOrder: () => void;
   resetPoints: () => void;
   nextGame: () => void;
   nextGameInSeries: () => void;
   newSeries: () => void;
   resetAll: () => void;
   resetAllSettings: () => void;
+  setShowWinDialog: (show: boolean) => void;
 };
 
 const getPlayerNameCacheKey = (playerId: string) => {
@@ -73,6 +83,7 @@ const createInitialPlayers = (numPlayers: number): Player[] => {
       legend: cachedLegend || null,
       diceResult: null,
       diceRollCount: 0,
+      turnOrder: i + 1, // Default: player 1 = 1, player 2 = 2
     });
   }
   return players;
@@ -110,6 +121,8 @@ const initialState: PointsCounterState = {
   currentGame: 1,
   seriesWins: {},
   seriesId: generateSeriesId(),
+  lastSavedMatchId: null,
+  showWinDialog: false,
 };
 
 export const usePointsCounterStore = create<
@@ -172,27 +185,154 @@ export const usePointsCounterStore = create<
         ? state.upperLimit - 1
         : state.upperLimit;
 
+      const updatedPlayers = state.players.map((player) =>
+        player.id === playerId
+          ? {
+              ...player,
+              points: Math.min(maxAllowedPoints, player.points + 1),
+            }
+          : player
+      );
+
+      // Check for winner and manage match history
+      const hasWinner = updatedPlayers.some(
+        (p) => p.points >= state.upperLimit
+      );
+      const previousHasWinner = state.players.some(
+        (p) => p.points >= state.upperLimit
+      );
+
+      let updatedLastSavedMatchId = state.lastSavedMatchId;
+
+      if (hasWinner && !previousHasWinner) {
+        // New winner - save match
+        const winner = updatedPlayers.find((p) => p.points >= state.upperLimit);
+        if (winner) {
+          const updatedSeriesWins = { ...state.seriesWins };
+          updatedSeriesWins[winner.id] =
+            (updatedSeriesWins[winner.id] || 0) + 1;
+
+          // For BO1, each game is its own series, so generate a new seriesId
+          const matchSeriesId = state.bestOf === 1 ? generateSeriesId() : state.seriesId;
+
+          const match: MatchResult = {
+            id: `match-${Date.now()}-${Math.random()
+              .toString(36)
+              .substr(2, 9)}`,
+            players: updatedPlayers.map((player) => ({
+              id: player.id,
+              name: player.name,
+              legend: player.legend,
+              points: player.points,
+              turnOrder: player.turnOrder,
+            })),
+            finishedAt: new Date().toISOString(),
+            seriesId: matchSeriesId,
+            gameNumber: state.bestOf === 1 ? 1 : state.currentGame, // For BO1, always game 1
+            seriesWins: { ...updatedSeriesWins },
+            bestOf: state.bestOf,
+          };
+          saveMatchToHistory(match);
+          updatedLastSavedMatchId = match.id;
+          // Show win dialog when someone first wins
+          return {
+            players: updatedPlayers,
+            lastSavedMatchId: updatedLastSavedMatchId,
+            showWinDialog: true,
+          };
+        }
+      } else if (hasWinner && previousHasWinner && state.lastSavedMatchId) {
+        // Still has winner but score changed - update match
+        const winner = updatedPlayers.find((p) => p.points >= state.upperLimit);
+        if (winner) {
+          const updatedSeriesWins = { ...state.seriesWins };
+          updatedSeriesWins[winner.id] =
+            (updatedSeriesWins[winner.id] || 0) + 1;
+
+          const match: MatchResult = {
+            id: state.lastSavedMatchId,
+            players: updatedPlayers.map((player) => ({
+              id: player.id,
+              name: player.name,
+              legend: player.legend,
+              points: player.points,
+              turnOrder: player.turnOrder,
+            })),
+            finishedAt: new Date().toISOString(),
+            seriesId: state.seriesId,
+            gameNumber: state.currentGame,
+            seriesWins: { ...updatedSeriesWins },
+            bestOf: state.bestOf,
+          };
+          updateMatchInHistory(state.lastSavedMatchId, match);
+        }
+      } else if (!hasWinner && previousHasWinner && state.lastSavedMatchId) {
+        // No longer has winner - remove match
+        deleteMatchFromHistory(state.lastSavedMatchId);
+        updatedLastSavedMatchId = null;
+      }
+
       return {
-        players: state.players.map((player) =>
-          player.id === playerId
-            ? {
-                ...player,
-                points: Math.min(maxAllowedPoints, player.points + 1),
-              }
-            : player
-        ),
+        players: updatedPlayers,
+        lastSavedMatchId: updatedLastSavedMatchId,
       };
     });
   },
 
   decrementPoints: (playerId: string) => {
-    set((state) => ({
-      players: state.players.map((player) =>
+    set((state) => {
+      const updatedPlayers = state.players.map((player) =>
         player.id === playerId
           ? { ...player, points: Math.max(0, player.points - 1) }
           : player
-      ),
-    }));
+      );
+
+      // Check for winner and manage match history
+      const hasWinner = updatedPlayers.some(
+        (p) => p.points >= state.upperLimit
+      );
+      const previousHasWinner = state.players.some(
+        (p) => p.points >= state.upperLimit
+      );
+
+      let updatedLastSavedMatchId = state.lastSavedMatchId;
+
+      if (hasWinner && previousHasWinner && state.lastSavedMatchId) {
+        // Still has winner but score changed - update match
+        const winner = updatedPlayers.find((p) => p.points >= state.upperLimit);
+        if (winner) {
+          const updatedSeriesWins = { ...state.seriesWins };
+          updatedSeriesWins[winner.id] =
+            (updatedSeriesWins[winner.id] || 0) + 1;
+
+          const match: MatchResult = {
+            id: state.lastSavedMatchId,
+            players: updatedPlayers.map((player) => ({
+              id: player.id,
+              name: player.name,
+              legend: player.legend,
+              points: player.points,
+              turnOrder: player.turnOrder,
+            })),
+            finishedAt: new Date().toISOString(),
+            seriesId: state.seriesId,
+            gameNumber: state.currentGame,
+            seriesWins: { ...updatedSeriesWins },
+            bestOf: state.bestOf,
+          };
+          updateMatchInHistory(state.lastSavedMatchId, match);
+        }
+      } else if (!hasWinner && previousHasWinner && state.lastSavedMatchId) {
+        // No longer has winner - remove match
+        deleteMatchFromHistory(state.lastSavedMatchId);
+        updatedLastSavedMatchId = null;
+      }
+
+      return {
+        players: updatedPlayers,
+        lastSavedMatchId: updatedLastSavedMatchId,
+      };
+    });
   },
 
   setPoints: (playerId: string, points: number) => {
@@ -207,15 +347,96 @@ export const usePointsCounterStore = create<
         ? state.upperLimit - 1
         : state.upperLimit;
 
+      const updatedPlayers = state.players.map((player) =>
+        player.id === playerId
+          ? {
+              ...player,
+              points: Math.max(0, Math.min(maxAllowedPoints, points)),
+            }
+          : player
+      );
+
+      // Check for winner and manage match history
+      const hasWinner = updatedPlayers.some(
+        (p) => p.points >= state.upperLimit
+      );
+      const previousHasWinner = state.players.some(
+        (p) => p.points >= state.upperLimit
+      );
+
+      let updatedLastSavedMatchId = state.lastSavedMatchId;
+
+      if (hasWinner && !previousHasWinner) {
+        // New winner - save match
+        const winner = updatedPlayers.find((p) => p.points >= state.upperLimit);
+        if (winner) {
+          const updatedSeriesWins = { ...state.seriesWins };
+          updatedSeriesWins[winner.id] =
+            (updatedSeriesWins[winner.id] || 0) + 1;
+
+          // For BO1, each game is its own series, so generate a new seriesId
+          const matchSeriesId = state.bestOf === 1 ? generateSeriesId() : state.seriesId;
+
+          const match: MatchResult = {
+            id: `match-${Date.now()}-${Math.random()
+              .toString(36)
+              .substr(2, 9)}`,
+            players: updatedPlayers.map((player) => ({
+              id: player.id,
+              name: player.name,
+              legend: player.legend,
+              points: player.points,
+              turnOrder: player.turnOrder,
+            })),
+            finishedAt: new Date().toISOString(),
+            seriesId: matchSeriesId,
+            gameNumber: state.bestOf === 1 ? 1 : state.currentGame, // For BO1, always game 1
+            seriesWins: { ...updatedSeriesWins },
+            bestOf: state.bestOf,
+          };
+          saveMatchToHistory(match);
+          updatedLastSavedMatchId = match.id;
+          // Show win dialog when someone first wins
+          return {
+            players: updatedPlayers,
+            lastSavedMatchId: updatedLastSavedMatchId,
+            showWinDialog: true,
+          };
+        }
+      } else if (hasWinner && previousHasWinner && state.lastSavedMatchId) {
+        // Still has winner but score changed - update match
+        const winner = updatedPlayers.find((p) => p.points >= state.upperLimit);
+        if (winner) {
+          const updatedSeriesWins = { ...state.seriesWins };
+          updatedSeriesWins[winner.id] =
+            (updatedSeriesWins[winner.id] || 0) + 1;
+
+          const match: MatchResult = {
+            id: state.lastSavedMatchId,
+            players: updatedPlayers.map((player) => ({
+              id: player.id,
+              name: player.name,
+              legend: player.legend,
+              points: player.points,
+              turnOrder: player.turnOrder,
+            })),
+            finishedAt: new Date().toISOString(),
+            seriesId: state.seriesId,
+            gameNumber: state.currentGame,
+            seriesWins: { ...updatedSeriesWins },
+            bestOf: state.bestOf,
+          };
+          updateMatchInHistory(state.lastSavedMatchId, match);
+        }
+      } else if (!hasWinner && previousHasWinner && state.lastSavedMatchId) {
+        // No longer has winner - remove match
+        deleteMatchFromHistory(state.lastSavedMatchId);
+        updatedLastSavedMatchId = null;
+      }
+
       return {
-        players: state.players.map((player) =>
-          player.id === playerId
-            ? {
-                ...player,
-                points: Math.max(0, Math.min(maxAllowedPoints, points)),
-              }
-            : player
-        ),
+        players: updatedPlayers,
+        lastSavedMatchId: updatedLastSavedMatchId,
       };
     });
   },
@@ -255,10 +476,26 @@ export const usePointsCounterStore = create<
     }));
   },
 
-  resetPoints: () => {
+  swapTurnOrder: () => {
     set((state) => ({
-      players: state.players.map((player) => ({ ...player, points: 0 })),
+      players: state.players.map((player) => ({
+        ...player,
+        turnOrder: player.turnOrder === 1 ? 2 : 1,
+      })),
     }));
+  },
+
+  resetPoints: () => {
+    set((state) => {
+      // If there was a saved match, remove it when resetting
+      if (state.lastSavedMatchId) {
+        deleteMatchFromHistory(state.lastSavedMatchId);
+      }
+      return {
+        players: state.players.map((player) => ({ ...player, points: 0 })),
+        lastSavedMatchId: null,
+      };
+    });
   },
 
   nextGame: () => {
@@ -295,28 +532,11 @@ export const usePointsCounterStore = create<
 
         if (winner) {
           // Increment series wins for the winner
-          updatedSeriesWins[winner.id] = (updatedSeriesWins[winner.id] || 0) + 1;
-
-          // Save match to history with series info (use updated seriesWins)
-          // Only save when there's a winner (someone hit max points)
-          const match: MatchResult = {
-            id: `match-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            players: state.players.map((player) => ({
-              id: player.id,
-              name: player.name,
-              legend: player.legend,
-              points: player.points,
-            })),
-            finishedAt: new Date().toISOString(),
-            seriesId: state.seriesId,
-            gameNumber: state.currentGame,
-            seriesWins: { ...updatedSeriesWins },
-            bestOf: state.bestOf,
-          };
-          saveMatchToHistory(match);
+          updatedSeriesWins[winner.id] =
+            (updatedSeriesWins[winner.id] || 0) + 1;
         }
       }
-      // Don't save matches without a winner - only save when someone hits max points
+      // Match history is now automatically tracked when someone wins
 
       // Move to next game in series
       updatedCurrentGame = state.currentGame + 1;
@@ -327,11 +547,14 @@ export const usePointsCounterStore = create<
       }
 
       // Reset points to 0 and use resetPlayers (which already has dice cleared)
+      // Clear lastSavedMatchId when starting a new game
       return {
         players: resetPlayers.map((player) => ({ ...player, points: 0 })),
         currentGame: updatedCurrentGame,
         seriesWins: updatedSeriesWins,
         seriesId: updatedSeriesId,
+        lastSavedMatchId: null,
+        showWinDialog: false,
       };
     });
   },
@@ -350,40 +573,18 @@ export const usePointsCounterStore = create<
         diceRollCount: 0,
       }));
 
-      if (hasWinner) {
-        // Find the winner
-        const winner = state.players.find(
-          (player) => player.points >= state.upperLimit
-        );
-
-        if (winner) {
-          // Save match to history with series info before resetting
-          // Only save when there's a winner (someone hit max points)
-          const match: MatchResult = {
-            id: `match-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            players: state.players.map((player) => ({
-              id: player.id,
-              name: player.name,
-              legend: player.legend,
-              points: player.points,
-            })),
-            finishedAt: new Date().toISOString(),
-            seriesId: state.seriesId,
-            gameNumber: state.currentGame,
-            seriesWins: { ...state.seriesWins },
-            bestOf: state.bestOf,
-          };
-          saveMatchToHistory(match);
-        }
-      }
-      // Don't save matches without a winner - only save when someone hits max points
+      // Match history is now automatically tracked when someone wins
+      // No need to save here - it's already saved when they reached max points
 
       // Start a new series
+      // Clear lastSavedMatchId when starting a new series
       return {
         players: resetPlayers.map((player) => ({ ...player, points: 0 })),
         currentGame: 1,
         seriesWins: {},
         seriesId: generateSeriesId(),
+        lastSavedMatchId: null,
+        showWinDialog: false,
       };
     });
   },
@@ -394,15 +595,15 @@ export const usePointsCounterStore = create<
       clearFromCache(getPlayerNameCacheKey(`player-${i}`));
       clearFromCache(getPlayerLegendCacheKey(`player-${i}`));
     }
-      set(() => ({
-        ...initialState,
-        players: createInitialPlayers(2),
-        upperLimit: 8,
-        bestOf: 1,
-        currentGame: 1,
-        seriesWins: {},
-        seriesId: generateSeriesId(),
-      }));
+    set(() => ({
+      ...initialState,
+      players: createInitialPlayers(2),
+      upperLimit: 8,
+      bestOf: 1,
+      currentGame: 1,
+      seriesWins: {},
+      seriesId: generateSeriesId(),
+    }));
     saveInCache(UPPER_LIMIT_CACHE_KEY, "8");
     saveInCache(BEST_OF_CACHE_KEY, "1");
   },
@@ -414,8 +615,14 @@ export const usePointsCounterStore = create<
       currentGame: 1,
       seriesWins: {},
       seriesId: generateSeriesId(),
+      lastSavedMatchId: null,
+      showWinDialog: false,
     }));
     saveInCache(UPPER_LIMIT_CACHE_KEY, "8");
     saveInCache(BEST_OF_CACHE_KEY, "1");
+  },
+
+  setShowWinDialog: (show: boolean) => {
+    set(() => ({ showWinDialog: show }));
   },
 }));

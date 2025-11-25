@@ -9,7 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import { IconMinus, IconPlus, IconX } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { LegendName } from "../../helpers/legends";
@@ -23,6 +23,12 @@ import { LegendSelectionGrid } from "./legend-selection-grid";
 import { usePointsCounterStore } from "./points-counter-store";
 import { SeriesResetDialog } from "./series-reset-dialog";
 import { SettingsSection, SettingsSectionTitle } from "./settings-section";
+
+// Type for the beforeinstallprompt event
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 type PointsCounterSettingsProps = {
   open: boolean;
@@ -67,6 +73,11 @@ export const PointsCounterSettings = ({
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [pendingBestOf, setPendingBestOf] = useState<number | null>(null);
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
 
   // Initialize player names when dialog opens
   useEffect(() => {
@@ -78,6 +89,68 @@ export const PointsCounterSettings = ({
       setPlayerNames(names);
     }
   }, [open, players]);
+
+  // Detect iOS
+  useEffect(() => {
+    const checkIOS = () => {
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+      const isStandalone = window.matchMedia(
+        "(display-mode: standalone)"
+      ).matches;
+      setIsIOS(isIOSDevice);
+
+      if (isStandalone) {
+        setIsInstalled(true);
+      }
+    };
+
+    checkIOS();
+    window.addEventListener("load", checkIOS);
+
+    return () => {
+      window.removeEventListener("load", checkIOS);
+    };
+  }, []);
+
+  // Listen for the beforeinstallprompt event (not supported on iOS)
+  useEffect(() => {
+    if (isIOS) return; // Skip on iOS as it doesn't support this event
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent the default browser install prompt
+      e.preventDefault();
+      // Store the event for later use
+      const promptEvent = e as BeforeInstallPromptEvent;
+      installPromptRef.current = promptEvent;
+      setInstallPrompt(promptEvent);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    // Check if app is already installed
+    const checkIfInstalled = () => {
+      if (window.matchMedia("(display-mode: standalone)").matches) {
+        // App is already installed
+        setIsInstalled(true);
+        setInstallPrompt(null);
+      } else {
+        setIsInstalled(false);
+      }
+    };
+    checkIfInstalled();
+
+    // Also check on window load
+    window.addEventListener("load", checkIfInstalled);
+
+    return () => {
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt
+      );
+      window.removeEventListener("load", checkIfInstalled);
+    };
+  }, [isIOS]);
 
   const handleDecrement = () => {
     if (upperLimit > MIN_LIMIT) {
@@ -130,6 +203,7 @@ export const PointsCounterSettings = ({
             name: player.name,
             legend: player.legend,
             points: player.points,
+            turnOrder: player.turnOrder,
           })),
           finishedAt: new Date().toISOString(),
           seriesId: seriesId,
@@ -470,7 +544,7 @@ export const PointsCounterSettings = ({
             </Box>
           </SettingsSection>
 
-          <SettingsSection showBottomBorder={false}>
+          <SettingsSection>
             <SettingsSectionTitle title="Match History" />
             <Typography
               sx={{
@@ -503,6 +577,122 @@ export const PointsCounterSettings = ({
             >
               Clear Match History
             </Button>
+          </SettingsSection>
+
+          {/* Install App Section */}
+          <SettingsSection showBottomBorder={false}>
+            <SettingsSectionTitle title="Install App" />
+            {isInstalled ? (
+              <Typography
+                sx={{
+                  fontSize: 14,
+                  color: GOLD_COLOR,
+                  marginBottom: 2,
+                }}
+              >
+                This app is already installed on your device.
+              </Typography>
+            ) : isIOS ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.5,
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    color: GOLD_COLOR,
+                  }}
+                >
+                  To install this app on iOS:
+                </Typography>
+                <Box
+                  component="ol"
+                  sx={{
+                    fontSize: 14,
+                    color: GOLD_COLOR,
+                    paddingLeft: 3,
+                    margin: 0,
+                    "& li": {
+                      marginBottom: 1,
+                    },
+                  }}
+                >
+                  <li>
+                    Tap the Share button (square with arrow) at the bottom of
+                    the screen
+                  </li>
+                  <li>Scroll down and tap "Add to Home Screen"</li>
+                  <li>Tap "Add" in the top right corner</li>
+                </Box>
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    color: GOLD_COLOR,
+                    opacity: 0.8,
+                    fontStyle: "italic",
+                  }}
+                >
+                  Note: Use Safari browser for the best experience. Chrome on
+                  iOS uses Safari's engine and may not show the install option.
+                </Typography>
+              </Box>
+            ) : installPrompt ? (
+              <>
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    color: GOLD_COLOR,
+                    marginBottom: 2,
+                  }}
+                >
+                  Install this app on your device for offline access and a
+                  better experience.
+                </Typography>
+                <Button
+                  onClick={async () => {
+                    if (installPromptRef.current) {
+                      // Show the install prompt
+                      await installPromptRef.current.prompt();
+                      // Wait for the user to respond
+                      const choiceResult = await installPromptRef.current
+                        .userChoice;
+                      if (choiceResult.outcome === "accepted") {
+                        // User accepted the install prompt
+                        setInstallPrompt(null);
+                        installPromptRef.current = null;
+                        setIsInstalled(true);
+                      }
+                    }
+                  }}
+                  fullWidth
+                  sx={{
+                    color: GOLD_COLOR,
+                    border: `2px solid ${GOLD_COLOR}`,
+                    paddingY: 1.5,
+                    "&:hover": {
+                      backgroundColor: "rgba(188, 154, 83, 0.1)",
+                    },
+                  }}
+                >
+                  Install App
+                </Button>
+              </>
+            ) : (
+              <Typography
+                sx={{
+                  fontSize: 14,
+                  color: GOLD_COLOR,
+                  marginBottom: 2,
+                }}
+              >
+                Install prompt not available. Make sure you're using a supported
+                browser (Chrome, Edge, Safari) and the app is served over HTTPS
+                or localhost.
+              </Typography>
+            )}
           </SettingsSection>
         </Box>
       </DialogContent>

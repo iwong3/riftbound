@@ -30,6 +30,7 @@ import {
 } from "./constants";
 import { LegendIcon } from "./legend-icon";
 import { LegendSelectorDialog } from "./legend-selector-dialog";
+import { NextGameDialog } from "./next-game-dialog";
 import { Player, usePointsCounterStore } from "./points-counter-store";
 import { PointsIndicatorHorizontal } from "./points-indicator-horizontal";
 
@@ -174,7 +175,7 @@ const CenterScoreDisplay = ({
   // BO1 = 1 win needed, BO3 = 2 wins needed, BO5 = 3 wins needed
   const numCircles = Math.ceil(bestOf / 2);
   const playerWins = seriesWins[player.id] || 0;
-  
+
   // If player has reached max points in current game, count it as a win for display
   // (but don't save until next game is pressed)
   const currentGameWin = isWinner ? 1 : 0;
@@ -221,7 +222,9 @@ const CenterScoreDisplay = ({
                       height: 12,
                       borderRadius: "50%",
                       backgroundColor: isFilled ? GREEN_COLOR : "transparent",
-                      border: `2px solid ${isFilled ? GREEN_COLOR : GOLD_COLOR}`,
+                      border: `2px solid ${
+                        isFilled ? GREEN_COLOR : GOLD_COLOR
+                      }`,
                     }}
                   />
                 );
@@ -295,6 +298,7 @@ const PlayerControls = ({
     clearDice,
     upperLimit,
     setPlayerName,
+    swapTurnOrder,
   } = usePointsCounterStore(
     useShallow((state) => ({
       incrementPoints: state.incrementPoints,
@@ -304,6 +308,7 @@ const PlayerControls = ({
       clearDice: state.clearDice,
       upperLimit: state.upperLimit,
       setPlayerName: state.setPlayerName,
+      swapTurnOrder: state.swapTurnOrder,
     }))
   );
 
@@ -473,19 +478,54 @@ const PlayerControls = ({
         >
           {player.name}
         </Typography>
-        <IconButton
-          onClick={handleDiceClick}
+        <Box
           sx={{
-            color: GOLD_COLOR,
-            padding: 0,
-            "&:hover": {
-              backgroundColor: "rgba(188, 154, 83, 0.1)",
-            },
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
           }}
-          title="Roll Dice"
         >
-          <IconDice3 size={27} />
-        </IconButton>
+          {/* Turn Order Toggle */}
+          <IconButton
+            onClick={swapTurnOrder}
+            sx={{
+              color: GOLD_COLOR,
+              border: `2px solid ${GOLD_COLOR}`,
+              borderRadius: 1,
+              width: 24,
+              height: 24,
+              "&:hover": {
+                backgroundColor: "rgba(188, 154, 83, 0.1)",
+              },
+            }}
+            title="Swap Turn Order"
+          >
+            <Typography
+              sx={{
+                fontSize: 16,
+                fontWeight: "bold",
+                color: GOLD_COLOR,
+                lineHeight: 1,
+              }}
+            >
+              {player.turnOrder}
+            </Typography>
+          </IconButton>
+          {/* Dice Button */}
+          <IconButton
+            onClick={handleDiceClick}
+            sx={{
+              color: GOLD_COLOR,
+              padding: 0,
+              "&:hover": {
+                backgroundColor: "rgba(188, 154, 83, 0.1)",
+              },
+            }}
+            title="Roll Dice"
+          >
+            <IconDice3 size={27} />
+          </IconButton>
+        </Box>
       </Box>
 
       {/* Points Indicator */}
@@ -694,6 +734,13 @@ const PlayerControls = ({
 };
 
 export const PointsCounterV2 = ({ players }: PointsCounterV2Props) => {
+  const { showWinDialog, setShowWinDialog } = usePointsCounterStore(
+    useShallow((state) => ({
+      showWinDialog: state.showWinDialog,
+      setShowWinDialog: state.setShowWinDialog,
+    }))
+  );
+
   // For mirrored layout: top players are opponents, bottom players are "me"
   // With 2 players: Player 2 (top/opponent), Player 1 (bottom/me)
   // Reverse order so bottom player is player 1
@@ -762,6 +809,12 @@ export const PointsCounterV2 = ({ players }: PointsCounterV2Props) => {
           <PlayerControls key={player.id} player={player} isMirrored={false} />
         ))}
       </Box>
+
+      {/* Win Dialog - Shows automatically when someone wins */}
+      <NextGameDialog
+        open={showWinDialog}
+        onClose={() => setShowWinDialog(false)}
+      />
     </Box>
   );
 };

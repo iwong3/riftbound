@@ -6,7 +6,7 @@ import {
   IconButton,
   Typography,
 } from "@mui/material";
-import { IconX } from "@tabler/icons-react";
+import { IconPentagonNumber1, IconX } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { getLegendDisplayName, LegendName } from "../../helpers/legends";
 import {
@@ -293,7 +293,6 @@ export const MatchHistoryDialog = ({
                     sx={{
                       display: "flex",
                       flexDirection: "column",
-                      width: "95%",
                       gap: 0.5,
                     }}
                   >
@@ -591,7 +590,7 @@ const MatchHistoryItem = ({
         </Typography>
       </Box>
 
-      {/* Main row: Player 1 icon, Player 1 score, Player 2 score, Player 2 icon */}
+      {/* Main row: Player 1 icon, Turn order icon, Scores, Turn order icon, Player 2 icon */}
       <Box
         sx={{
           display: "flex",
@@ -609,6 +608,22 @@ const MatchHistoryItem = ({
           isLoser={player2Won}
           showName={false}
         />
+
+        {/* Turn Order Icon for Player 1 (or empty space) */}
+        <Box
+          sx={{
+            width: 12,
+            height: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {(player1.turnOrder || 1) === 1 && (
+            <IconPentagonNumber1 size={12} color={GOLD_COLOR} />
+          )}
+        </Box>
 
         {/* Scores */}
         <Box
@@ -644,6 +659,22 @@ const MatchHistoryItem = ({
             isWinner={player2Won}
             isLoser={player1Won}
           />
+        </Box>
+
+        {/* Turn Order Icon for Player 2 (or empty space) */}
+        <Box
+          sx={{
+            width: 12,
+            height: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {(player2.turnOrder || 2) === 1 && (
+            <IconPentagonNumber1 size={12} color={GOLD_COLOR} />
+          )}
         </Box>
 
         {/* Player 2 Display */}

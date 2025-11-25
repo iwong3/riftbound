@@ -2,6 +2,10 @@
 
 ## To-Do List
 
+- [ ] Add way to export match history (.csv)
+- [ ] Toggle for mirrored vs. normal
+- [ ] Adjust UX for bigger screens (tablet, pc)
+- [ ] Multiplayer (3 player, 4 player FFA, 2v2)
 - [ ] Add background for app, such as river in the middle
 - [ ] Add undo button
 
@@ -15,3 +19,6 @@
 - [x] Roll dice (simultaneously, one at a time)
 - [x] Victory animation when a player reaches max points
 - [x] Support series (best of x)
+- [x] Mark which player went first
+- [x] Auto add to match history if a player hits max points
+- [x] Upon hitting max points, show a popup to go next

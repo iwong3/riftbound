@@ -35,6 +35,9 @@ type PlayerEditSectionProps = {
   onDecrement: () => void;
   pointsToWin: number;
   otherPlayerPoints: number;
+  turnOrder: number;
+  onTurnOrderChange: (turnOrder: number) => void;
+  otherPlayerTurnOrder: number;
 };
 
 const PlayerEditSection = ({
@@ -49,6 +52,9 @@ const PlayerEditSection = ({
   onDecrement,
   pointsToWin,
   otherPlayerPoints,
+  turnOrder,
+  onTurnOrderChange,
+  otherPlayerTurnOrder,
 }: PlayerEditSectionProps) => {
   const isIncrementDisabled =
     points >= pointsToWin ||
@@ -100,6 +106,61 @@ const PlayerEditSection = ({
         iconSize={60}
         maxHeight="250px"
       />
+      <Typography
+        sx={{
+          fontSize: 14,
+          color: GOLD_COLOR,
+          marginTop: 2,
+          marginBottom: 1,
+        }}
+      >
+        Turn Order
+      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 2,
+          marginBottom: 2,
+        }}
+      >
+        <IconButton
+          onClick={() => onTurnOrderChange(turnOrder === 1 ? 2 : 1)}
+          sx={{
+            color: GOLD_COLOR,
+            border: `2px solid ${GOLD_COLOR}`,
+            "&:hover": {
+              backgroundColor: "rgba(188, 154, 83, 0.1)",
+            },
+          }}
+        >
+          <IconMinus size={20} />
+        </IconButton>
+        <Typography
+          sx={{
+            fontSize: 24,
+            fontWeight: "bold",
+            color: GOLD_COLOR,
+            minWidth: 40,
+            textAlign: "center",
+          }}
+        >
+          {turnOrder}
+        </Typography>
+        <IconButton
+          onClick={() => onTurnOrderChange(turnOrder === 1 ? 2 : 1)}
+          sx={{
+            color: GOLD_COLOR,
+            border: `2px solid ${GOLD_COLOR}`,
+            "&:hover": {
+              backgroundColor: "rgba(188, 154, 83, 0.1)",
+            },
+          }}
+        >
+          <IconPlus size={20} />
+        </IconButton>
+      </Box>
       <Typography
         sx={{
           fontSize: 14,
@@ -195,6 +256,12 @@ export const EditMatchDialog = ({
   const [player2Legend, setPlayer2Legend] = useState<LegendName | null>(
     match.players[1]?.legend || null
   );
+  const [player1TurnOrder, setPlayer1TurnOrder] = useState(
+    match.players[0]?.turnOrder || 1
+  );
+  const [player2TurnOrder, setPlayer2TurnOrder] = useState(
+    match.players[1]?.turnOrder || 2
+  );
   const [pointsToWin, setPointsToWin] = useState(() => {
     // Default to the higher of the two player's points, or 8
     const maxPoints = Math.max(
@@ -231,6 +298,8 @@ export const EditMatchDialog = ({
       setPlayer2Points(p2Points);
       setPlayer1Legend(match.players[0]?.legend || null);
       setPlayer2Legend(match.players[1]?.legend || null);
+      setPlayer1TurnOrder(match.players[0]?.turnOrder || 1);
+      setPlayer2TurnOrder(match.players[1]?.turnOrder || 2);
       setPointsToWin(initialPointsToWin);
       prevPlayer1LegendRef.current = match.players[0]?.legend || null;
       prevPlayer2LegendRef.current = match.players[1]?.legend || null;
@@ -253,12 +322,16 @@ export const EditMatchDialog = ({
     p1Legend?: LegendName | null,
     p2Legend?: LegendName | null,
     dt?: string,
-    ptsToWin?: number
+    ptsToWin?: number,
+    p1TurnOrder?: number,
+    p2TurnOrder?: number
   ): MatchResult => {
     const date = new Date(dt || dateTime);
     const p1Pts = p1Points !== undefined ? p1Points : player1Points;
     const p2Pts = p2Points !== undefined ? p2Points : player2Points;
     const ptsWin = ptsToWin !== undefined ? ptsToWin : pointsToWin;
+    const p1TO = p1TurnOrder !== undefined ? p1TurnOrder : player1TurnOrder;
+    const p2TO = p2TurnOrder !== undefined ? p2TurnOrder : player2TurnOrder;
 
     // Constrain points to pointsToWin
     const constrainedP1Points = Math.min(Math.max(0, p1Pts), ptsWin);
@@ -284,12 +357,14 @@ export const EditMatchDialog = ({
           name: (p1Name || player1Name).trim() || "Player 1",
           legend: p1Legend !== undefined ? p1Legend : player1Legend,
           points: finalP1Points,
+          turnOrder: p1TO,
         },
         {
           id: match.players[1]?.id || "player2",
           name: (p2Name || player2Name).trim() || "Player 2",
           legend: p2Legend !== undefined ? p2Legend : player2Legend,
           points: finalP2Points,
+          turnOrder: p2TO,
         },
       ],
       finishedAt: date.toISOString(),
@@ -310,7 +385,9 @@ export const EditMatchDialog = ({
     p1Legend?: LegendName | null,
     p2Legend?: LegendName | null,
     dt?: string,
-    ptsToWin?: number
+    ptsToWin?: number,
+    p1TurnOrder?: number,
+    p2TurnOrder?: number
   ) => {
     const updatedMatch = createUpdatedMatch(
       p1Points,
@@ -320,7 +397,9 @@ export const EditMatchDialog = ({
       p1Legend,
       p2Legend,
       dt,
-      ptsToWin
+      ptsToWin,
+      p1TurnOrder,
+      p2TurnOrder
     );
     onSave(updatedMatch, false); // false = don't close
   };
@@ -570,6 +649,14 @@ export const EditMatchDialog = ({
             onDecrement={handleDecrementPlayer1}
             pointsToWin={pointsToWin}
             otherPlayerPoints={player2Points}
+            turnOrder={player1TurnOrder}
+            onTurnOrderChange={(newOrder) => {
+              const newP2Order = newOrder === 1 ? 2 : 1;
+              setPlayer1TurnOrder(newOrder);
+              setPlayer2TurnOrder(newP2Order);
+              handleAutoSave(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, newOrder, newP2Order);
+            }}
+            otherPlayerTurnOrder={player2TurnOrder}
           />
 
           {/* Player 2 Section */}
@@ -585,6 +672,14 @@ export const EditMatchDialog = ({
             onDecrement={handleDecrementPlayer2}
             pointsToWin={pointsToWin}
             otherPlayerPoints={player1Points}
+            turnOrder={player2TurnOrder}
+            onTurnOrderChange={(newOrder) => {
+              const newP1Order = newOrder === 1 ? 2 : 1;
+              setPlayer2TurnOrder(newOrder);
+              setPlayer1TurnOrder(newP1Order);
+              handleAutoSave(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, newP1Order, newOrder);
+            }}
+            otherPlayerTurnOrder={player1TurnOrder}
           />
 
           {/* DateTime Section */}

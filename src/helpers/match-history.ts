@@ -8,6 +8,7 @@ export type MatchResult = {
     name: string;
     legend: LegendName | null;
     points: number;
+    turnOrder?: number; // Turn order (1 or 2)
   }[];
   finishedAt: string; // ISO datetime string
   seriesId?: string; // Unique ID for the series
@@ -33,7 +34,10 @@ export const saveMatchToHistory = (match: MatchResult): void => {
   saveInCache(MATCH_HISTORY_CACHE_KEY, JSON.stringify(history));
 };
 
-export const updateMatchInHistory = (matchId: string, updatedMatch: MatchResult): void => {
+export const updateMatchInHistory = (
+  matchId: string,
+  updatedMatch: MatchResult
+): void => {
   const history = getMatchHistory();
   const index = history.findIndex((m) => m.id === matchId);
   if (index !== -1) {
@@ -42,11 +46,20 @@ export const updateMatchInHistory = (matchId: string, updatedMatch: MatchResult)
   }
 };
 
+export const deleteMatchFromHistory = (matchId: string): void => {
+  const history = getMatchHistory();
+  const filtered = history.filter((m) => m.id !== matchId);
+  saveInCache(MATCH_HISTORY_CACHE_KEY, JSON.stringify(filtered));
+};
+
 export const clearMatchHistory = (): void => {
   saveInCache(MATCH_HISTORY_CACHE_KEY, "[]");
 };
 
-export const updateMatchesInSeries = (seriesId: string, newBestOf: number): void => {
+export const updateMatchesInSeries = (
+  seriesId: string,
+  newBestOf: number
+): void => {
   const history = getMatchHistory();
   const updated = history.map((match) => {
     if (match.seriesId === seriesId) {
@@ -100,4 +113,3 @@ export const recalculateSeriesWins = (seriesId: string): void => {
 
   saveInCache(MATCH_HISTORY_CACHE_KEY, JSON.stringify(updatedHistory));
 };
-
