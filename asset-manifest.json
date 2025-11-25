@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/riftbound/static/css/main.345ef473.css",
-    "main.js": "/riftbound/static/js/main.cebd8dad.js",
+    "main.css": "/riftbound/static/css/main.31d5d8f3.css",
+    "main.js": "/riftbound/static/js/main.06673aa1.js",
     "static/media/miss-fortune-icon.jpg": "/riftbound/static/media/miss-fortune-icon.64abfd58ef3653e15a67.jpg",
     "static/media/darius-icon.jpg": "/riftbound/static/media/darius-icon.03120806fa2a46a16cb0.jpg",
     "static/media/sett-icon.jpg": "/riftbound/static/media/sett-icon.ea526a5cc432a75bbae5.jpg",
@@ -19,11 +19,11 @@
     "static/media/jinx-icon.jpg": "/riftbound/static/media/jinx-icon.ded869c64b76a8adc051.jpg",
     "static/media/lux-icon.jpg": "/riftbound/static/media/lux-icon.797f86fddbdbb4ed45a9.jpg",
     "index.html": "/riftbound/index.html",
-    "main.345ef473.css.map": "/riftbound/static/css/main.345ef473.css.map",
-    "main.cebd8dad.js.map": "/riftbound/static/js/main.cebd8dad.js.map"
+    "main.31d5d8f3.css.map": "/riftbound/static/css/main.31d5d8f3.css.map",
+    "main.06673aa1.js.map": "/riftbound/static/js/main.06673aa1.js.map"
   },
   "entrypoints": [
-    "static/css/main.345ef473.css",
-    "static/js/main.cebd8dad.js"
+    "static/css/main.31d5d8f3.css",
+    "static/js/main.06673aa1.js"
   ]
 }
