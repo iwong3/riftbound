@@ -654,18 +654,7 @@ export const EditMatchDialog = ({
               const newP2Order = newOrder === 1 ? 2 : 1;
               setPlayer1TurnOrder(newOrder);
               setPlayer2TurnOrder(newP2Order);
-              handleAutoSave(
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                newOrder,
-                newP2Order
-              );
+              handleAutoSave(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, newOrder, newP2Order);
             }}
             otherPlayerTurnOrder={player2TurnOrder}
           />
@@ -688,18 +677,7 @@ export const EditMatchDialog = ({
               const newP1Order = newOrder === 1 ? 2 : 1;
               setPlayer2TurnOrder(newOrder);
               setPlayer1TurnOrder(newP1Order);
-              handleAutoSave(
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                newP1Order,
-                newOrder
-              );
+              handleAutoSave(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, newP1Order, newOrder);
             }}
             otherPlayerTurnOrder={player1TurnOrder}
           />

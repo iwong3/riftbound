@@ -2,7 +2,6 @@
 
 ## To-Do List
 
-- [ ] Add way to export match history (.csv)
 - [ ] Toggle for mirrored vs. normal
 - [ ] Add way to rotate screen
 - [ ] Adjust UX for bigger screens (tablet, pc)
@@ -23,3 +22,4 @@
 - [x] Mark which player went first
 - [x] Auto add to match history if a player hits max points
 - [x] Upon hitting max points, show a popup to go next
+- [x] Add way to export match history (.csv)

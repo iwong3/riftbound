@@ -6,8 +6,9 @@ import {
   IconButton,
   Typography,
 } from "@mui/material";
-import { IconPentagonNumber1, IconX } from "@tabler/icons-react";
+import { IconDownload, IconPentagonNumber1, IconX } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
+import { downloadMatchHistoryAsCsv } from "../../helpers/csv-export";
 import { getLegendDisplayName, LegendName } from "../../helpers/legends";
 import {
   getMatchHistory,
@@ -203,7 +204,28 @@ export const MatchHistoryDialog = ({
           fontWeight: "bold",
         }}
       >
-        Match History
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          Match History
+          <IconButton
+            onClick={() => downloadMatchHistoryAsCsv(matchHistory)}
+            disabled={matchHistory.length === 0}
+            sx={{
+              color: GOLD_COLOR,
+              border: `1px solid ${GOLD_COLOR}`,
+              padding: 0.5,
+              "&:hover": {
+                backgroundColor: "rgba(188, 154, 83, 0.1)",
+              },
+              "&.Mui-disabled": {
+                borderColor: "rgba(188, 154, 83, 0.3)",
+                color: "rgba(188, 154, 83, 0.3)",
+              },
+            }}
+            title="Export as CSV"
+          >
+            <IconDownload size={11} />
+          </IconButton>
+        </Box>
         <IconButton
           onClick={onClose}
           sx={{
