@@ -1,29 +1,33 @@
 import { Box, IconButton } from "@mui/material";
 import {
-  IconLayout2,
+  IconDice3,
   IconLayoutList,
   IconPlus,
-  IconRefresh,
   IconSettings,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { GOLD_COLOR } from "./constants";
+import riftboundLogo from "../../images/riftbound-logo.svg";
+import { BLUE_COLOR, GOLD_COLOR } from "./constants";
 import { MatchHistoryDialog } from "./match-history-dialog";
+import { NextGameDialog } from "./next-game-dialog";
 import { PointsCounterSettings } from "./points-counter-settings";
 import { usePointsCounterStore } from "./points-counter-store";
 
 export const PointsCounterMenu = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [matchHistoryOpen, setMatchHistoryOpen] = useState(false);
-  const { nextGame, layoutVersion, setLayoutVersion } = usePointsCounterStore(
-    useShallow((state) => ({
-      nextGame: state.nextGame,
-      layoutVersion: state.layoutVersion,
-      setLayoutVersion: state.setLayoutVersion,
-    }))
-  );
+  const [nextGameDialogOpen, setNextGameDialogOpen] = useState(false);
+  const { nextGame, nextGameInSeries, rollDiceForAll, bestOf } =
+    usePointsCounterStore(
+      useShallow((state) => ({
+        nextGame: state.nextGame,
+        nextGameInSeries: state.nextGameInSeries,
+        rollDiceForAll: state.rollDiceForAll,
+        bestOf: state.bestOf,
+      }))
+    );
 
   const handleSettings = () => {
     setSettingsOpen(true);
@@ -34,11 +38,17 @@ export const PointsCounterMenu = () => {
   };
 
   const handleNextGame = () => {
-    nextGame();
+    if (bestOf === 1) {
+      // For BO1, proceed directly
+      nextGameInSeries();
+    } else {
+      // For BO3+, show dialog
+      setNextGameDialogOpen(true);
+    }
   };
 
-  const handleToggleLayout = () => {
-    setLayoutVersion(layoutVersion === "v1" ? "v2" : "v1");
+  const handleRollDiceForAll = () => {
+    rollDiceForAll();
   };
 
   return (
@@ -50,31 +60,43 @@ export const PointsCounterMenu = () => {
         width: "100%",
         padding: 1,
         boxSizing: "border-box",
-        backgroundColor: GOLD_COLOR,
+        background: `linear-gradient(to right, ${BLUE_COLOR} 0%, ${BLUE_COLOR} 15%, ${GOLD_COLOR} 60%, ${GOLD_COLOR} 100%)`,
       }}
     >
-      {/* Left Side - Layout Toggle */}
-      <IconButton
-        onClick={handleToggleLayout}
+      {/* Left Side - Logo */}
+      <Box
+        component="img"
+        src={riftboundLogo}
+        alt="Riftbound"
         sx={{
-          color: "#000",
-          "&:hover": {
-            backgroundColor: "rgba(0, 0, 0, 0.1)",
-          },
+          width: 24,
+          height: 24,
+          padding: 1,
         }}
-        title={`Switch to ${layoutVersion === "v1" ? "v2" : "v1"} layout`}
-      >
-        <IconLayout2 size={24} />
-      </IconButton>
+      />
 
-      {/* Right Side Menu - Rightmost to Leftmost: Settings, Match History, Reset */}
+      {/* Right Side Menu */}
       <Box
         sx={{
           display: "flex",
           gap: 1,
         }}
       >
-        {/* Next Game - Leftmost of right side */}
+        {/* Roll Dice for All */}
+        <IconButton
+          onClick={handleRollDiceForAll}
+          sx={{
+            color: "#000",
+            "&:hover": {
+              backgroundColor: "rgba(0, 0, 0, 0.1)",
+            },
+          }}
+          title="Roll Dice for All Players"
+        >
+          <IconDice3 size={24} />
+        </IconButton>
+
+        {/* Next Game */}
         <IconButton
           onClick={handleNextGame}
           sx={{
@@ -102,7 +124,7 @@ export const PointsCounterMenu = () => {
           <IconLayoutList size={24} />
         </IconButton>
 
-        {/* Settings - Rightmost */}
+        {/* Settings */}
         <IconButton
           onClick={handleSettings}
           sx={{
@@ -126,6 +148,12 @@ export const PointsCounterMenu = () => {
       <MatchHistoryDialog
         open={matchHistoryOpen}
         onClose={() => setMatchHistoryOpen(false)}
+      />
+
+      {/* Next Game Dialog */}
+      <NextGameDialog
+        open={nextGameDialogOpen}
+        onClose={() => setNextGameDialogOpen(false)}
       />
     </Box>
   );

@@ -8,13 +8,22 @@ import {
 } from "@mui/material";
 import { IconX } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
-import { LegendName } from "../../helpers/legends";
+import { getLegendDisplayName, LegendName } from "../../helpers/legends";
 import {
   getMatchHistory,
   MatchResult,
+  recalculateSeriesWins,
   updateMatchInHistory,
 } from "../../helpers/match-history";
-import { BLUE_COLOR, GOLD_COLOR, GREEN_COLOR, RED_COLOR } from "./constants";
+import {
+  BLUE_COLOR,
+  GOLD_COLOR,
+  GOLD_COLOR_DARK,
+  GREEN_COLOR,
+  PLAYER_1_COLOR,
+  PLAYER_2_COLOR,
+  RED_COLOR,
+} from "./constants";
 import { EditMatchDialog } from "./edit-match-dialog";
 import { LegendIcon } from "./legend-icon";
 
@@ -66,11 +75,82 @@ export const MatchHistoryDialog = ({
     }
   }, [open]);
 
-  // Sort by datetime descending (most recent first)
-  const sortedHistory = [...matchHistory].sort(
-    (a, b) =>
-      new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime()
-  );
+  // Group matches by seriesId and sort
+  const groupedBySeries = new Map<string, MatchResult[]>();
+  matchHistory.forEach((match) => {
+    const seriesId = match.seriesId || "no-series";
+    if (!groupedBySeries.has(seriesId)) {
+      groupedBySeries.set(seriesId, []);
+    }
+    groupedBySeries.get(seriesId)!.push(match);
+  });
+
+  // Sort each series by datetime descending, then sort series by most recent match
+  const sortedSeries = Array.from(groupedBySeries.entries())
+    .map(([seriesId, matches]) => ({
+      seriesId,
+      matches: matches.sort(
+        (a, b) =>
+          new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime()
+      ),
+      mostRecentDate: Math.max(
+        ...matches.map((m) => new Date(m.finishedAt).getTime())
+      ),
+    }))
+    .sort((a, b) => b.mostRecentDate - a.mostRecentDate);
+
+  // Generate alternating colors for series borders
+  const SERIES_COLORS = [GOLD_COLOR, GOLD_COLOR_DARK]; // Gold and darker gold for alternation
+
+  // Generate human-readable series display name
+  const getSeriesDisplayName = (
+    match: MatchResult,
+    allMatchesInSeries: MatchResult[]
+  ): string => {
+    const p1 = match.players[0];
+    const p2 = match.players[1] || match.players[0];
+    const p1Legend = getLegendDisplayName(p1.legend);
+    const p2Legend = getLegendDisplayName(p2.legend);
+    const bestOf = match.bestOf || 1;
+
+    // Recalculate series wins dynamically from all matches in the series
+    // This ensures we always have the current state, even if matches were edited
+    const calculatedSeriesWins: Record<string, number> = {};
+    const sortedMatches = [...allMatchesInSeries].sort(
+      (a, b) => (a.gameNumber || 1) - (b.gameNumber || 1)
+    );
+
+    sortedMatches.forEach((m) => {
+      const matchP1 = m.players[0];
+      const matchP2 = m.players[1] || m.players[0];
+      const matchP1Won = matchP1.points > matchP2.points;
+      const matchP2Won = matchP2.points > matchP1.points;
+
+      if (matchP1Won) {
+        calculatedSeriesWins[matchP1.id] =
+          (calculatedSeriesWins[matchP1.id] || 0) + 1;
+      } else if (matchP2Won) {
+        calculatedSeriesWins[matchP2.id] =
+          (calculatedSeriesWins[matchP2.id] || 0) + 1;
+      }
+    });
+
+    const winsRequired = Math.ceil(bestOf / 2);
+    const p1Wins = calculatedSeriesWins[p1.id] || 0;
+    const p2Wins = calculatedSeriesWins[p2.id] || 0;
+
+    const p1WonSeries = p1Wins >= winsRequired;
+    const p2WonSeries = p2Wins >= winsRequired;
+    const isIncomplete = !p1WonSeries && !p2WonSeries;
+
+    // Add crown emoji to winner's name
+    const p1Name = p1WonSeries ? `👑 ${p1.name}` : p1.name;
+    const p2Name = p2WonSeries ? `👑 ${p2.name}` : p2.name;
+
+    const incompleteText = isIncomplete ? " (Incomplete)" : "";
+
+    return `${p1Name}'s ${p1Legend} vs. ${p2Name}'s ${p2Legend} - Bo${bestOf}${incompleteText}`;
+  };
 
   const handleEditMatch = (match: MatchResult) => {
     setEditingMatch(match);
@@ -82,7 +162,13 @@ export const MatchHistoryDialog = ({
     shouldClose: boolean = true
   ) => {
     updateMatchInHistory(updatedMatch.id, updatedMatch);
-    // Refresh match history
+
+    // Recalculate seriesWins for all matches in the series if this match is part of a series
+    if (updatedMatch.seriesId) {
+      recalculateSeriesWins(updatedMatch.seriesId);
+    }
+
+    // Refresh match history to update series titles dynamically
     const history = getMatchHistory();
     setMatchHistory(history);
 
@@ -155,7 +241,7 @@ export const MatchHistoryDialog = ({
             },
           }}
         >
-          {sortedHistory.length === 0 ? (
+          {sortedSeries.length === 0 ? (
             <Typography
               sx={{
                 color: GOLD_COLOR,
@@ -166,13 +252,64 @@ export const MatchHistoryDialog = ({
               No match history yet
             </Typography>
           ) : (
-            sortedHistory.map((match) => (
-              <MatchHistoryItem
-                key={match.id}
-                match={match}
-                onEdit={handleEditMatch}
-              />
-            ))
+            sortedSeries.map((series, seriesIndex) => {
+              const seriesColor =
+                SERIES_COLORS[seriesIndex % SERIES_COLORS.length];
+              const firstMatch = series.matches[0];
+              const formatDateTime = (isoString: string): string => {
+                const date = new Date(isoString);
+                const month = String(date.getMonth() + 1).padStart(2, "0");
+                const day = String(date.getDate()).padStart(2, "0");
+                const year = String(date.getFullYear()).slice(-2);
+                const hours = date.getHours();
+                const minutes = String(date.getMinutes()).padStart(2, "0");
+                const hour12 = hours % 12 || 12;
+                const ampm = hours >= 12 ? "PM" : "AM";
+                return `${month}/${day}/${year}, ${hour12}:${minutes} ${ampm}`;
+              };
+
+              return (
+                <Box key={series.seriesId}>
+                  {/* Series Header */}
+                  <Box
+                    sx={{
+                      paddingX: 1,
+                      marginBottom: 0.5,
+                    }}
+                  >
+                    {/* Series Title - Full Width */}
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: GOLD_COLOR,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {getSeriesDisplayName(firstMatch, series.matches)}
+                    </Typography>
+                  </Box>
+                  {/* Series Matches */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      width: "95%",
+                      gap: 0.5,
+                    }}
+                  >
+                    {series.matches.map((match) => (
+                      <MatchHistoryItem
+                        key={match.id}
+                        match={match}
+                        onEdit={handleEditMatch}
+                        allMatches={matchHistory}
+                        seriesBorderColor={seriesColor}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              );
+            })
           )}
         </Box>
       </DialogContent>
@@ -196,6 +333,8 @@ export const MatchHistoryDialog = ({
 type MatchHistoryItemProps = {
   match: MatchResult;
   onEdit: (match: MatchResult) => void;
+  allMatches: MatchResult[];
+  seriesBorderColor?: string;
 };
 
 type MatchPlayerDisplayProps = {
@@ -271,7 +410,12 @@ const MatchPlayerName = ({ name }: MatchPlayerNameProps) => {
   );
 };
 
-const MatchHistoryItem = ({ match, onEdit }: MatchHistoryItemProps) => {
+const MatchHistoryItem = ({
+  match,
+  onEdit,
+  allMatches,
+  seriesBorderColor = GOLD_COLOR,
+}: MatchHistoryItemProps) => {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isLongPressing, setIsLongPressing] = useState(false);
 
@@ -330,6 +474,73 @@ const MatchHistoryItem = ({ match, onEdit }: MatchHistoryItemProps) => {
   const player1Won = player1.points > player2.points;
   const player2Won = player2.points > player1.points;
 
+  // Series circles logic
+  const seriesWins = match.seriesWins || {};
+  const gameNumber = match.gameNumber || 1;
+  const p1Wins = seriesWins[player1.id] || 0;
+  const p2Wins = seriesWins[player2.id] || 0;
+
+  // Use stored bestOf, or infer from series info if not stored
+  let bestOf = match.bestOf || 1;
+  if (!match.bestOf && (p1Wins > 0 || p2Wins > 0 || gameNumber > 1)) {
+    // Infer from game number (fallback for old matches)
+    if (gameNumber <= 3) {
+      bestOf = 3;
+    } else if (gameNumber <= 5) {
+      bestOf = 5;
+    }
+  }
+
+  // Number of circles should match bestOf (BO1 = 1 circle, BO3 = 3 circles, BO5 = 5 circles)
+  const numCircles = bestOf;
+
+  // Determine winner of this match
+  const thisGameWinner = player1Won ? player1 : player2Won ? player2 : null;
+
+  // Get all matches in the same series, sorted by game number
+  const seriesMatches = match.seriesId
+    ? allMatches
+        .filter((m) => m.seriesId === match.seriesId)
+        .sort((a, b) => (a.gameNumber || 1) - (b.gameNumber || 1))
+    : [match];
+
+  // Create a map of game number to winner
+  const gameWinners = new Map<number, { id: string; name: string } | null>();
+  seriesMatches.forEach((seriesMatch) => {
+    const gameNum = seriesMatch.gameNumber || 1;
+    const p1 = seriesMatch.players[0];
+    const p2 = seriesMatch.players[1] || seriesMatch.players[0];
+    const p1Won = p1.points > p2.points;
+    const p2Won = p2.points > p1.points;
+    const winner = p1Won ? p1 : p2Won ? p2 : null;
+    gameWinners.set(gameNum, winner);
+  });
+
+  // Calculate series state: for each game, determine if it's been played and who won
+  const getSeriesCircleState = (gameNum: number) => {
+    if (gameNum < gameNumber) {
+      // Previous game - look up in series matches
+      const winner = gameWinners.get(gameNum);
+      if (winner) {
+        // Match the winner to player1 or player2 based on ID
+        const matchedWinner =
+          winner.id === player1.id
+            ? player1
+            : winner.id === player2.id
+            ? player2
+            : null;
+        return { winner: matchedWinner, played: true };
+      }
+      return { winner: null, played: false };
+    } else if (gameNum === gameNumber) {
+      // Current game
+      return { winner: thisGameWinner, played: thisGameWinner !== null };
+    } else {
+      // Future game
+      return { winner: null, played: false };
+    }
+  };
+
   return (
     <Box
       onMouseDown={handleMouseDown}
@@ -338,9 +549,11 @@ const MatchHistoryItem = ({ match, onEdit }: MatchHistoryItemProps) => {
       onTouchStart={handleMouseDown}
       onTouchEnd={handleMouseUp}
       sx={{
-        border: `3px double ${GOLD_COLOR}`,
+        border: `3px double ${seriesBorderColor}`,
         borderRadius: 1,
-        padding: 1,
+        paddingX: 1,
+        paddingTop: 0.5,
+        paddingBottom: 1,
         backgroundColor: isLongPressing
           ? "rgba(188, 154, 83, 0.15)"
           : "rgba(188, 154, 83, 0.05)",
@@ -349,6 +562,35 @@ const MatchHistoryItem = ({ match, onEdit }: MatchHistoryItemProps) => {
         transition: "background-color 0.2s",
       }}
     >
+      {/* Game Number and Datetime Row */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 0.5,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: 10,
+            color: GOLD_COLOR,
+            opacity: 0.8,
+          }}
+        >
+          Game {gameNumber}
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: 10,
+            color: GOLD_COLOR,
+            opacity: 0.7,
+          }}
+        >
+          {formatDateTime(match.finishedAt)}
+        </Typography>
+      </Box>
+
       {/* Main row: Player 1 icon, Player 1 score, Player 2 score, Player 2 icon */}
       <Box
         sx={{
@@ -428,7 +670,7 @@ const MatchHistoryItem = ({ match, onEdit }: MatchHistoryItemProps) => {
         {/* Player 1 Name - aligned with Player 1 icon */}
         <MatchPlayerName name={player1.name} />
 
-        {/* DateTime (centered) - aligned with scores section */}
+        {/* Series Circles or DateTime (centered) - aligned with scores section */}
         <Box
           sx={{
             display: "flex",
@@ -439,16 +681,75 @@ const MatchHistoryItem = ({ match, onEdit }: MatchHistoryItemProps) => {
             minWidth: 0,
           }}
         >
-          <Typography
-            sx={{
-              fontSize: 11,
-              color: GOLD_COLOR,
-              opacity: 0.7,
-              textAlign: "center",
-            }}
-          >
-            {formatDateTime(match.finishedAt)}
-          </Typography>
+          {numCircles > 0 ? (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+              }}
+            >
+              {Array.from({ length: numCircles }, (_, index) => {
+                const gameNum = index + 1;
+                const circleState = getSeriesCircleState(gameNum);
+                const isPlayer1 = circleState.winner?.id === player1.id;
+                const isPlayer2 = circleState.winner?.id === player2.id;
+                const playerColor = isPlayer1
+                  ? PLAYER_1_COLOR
+                  : isPlayer2
+                  ? PLAYER_2_COLOR
+                  : GOLD_COLOR;
+                const isFilled =
+                  circleState.played && circleState.winner !== null;
+                const winnerInitial = circleState.winner
+                  ? circleState.winner.name.charAt(0).toUpperCase()
+                  : "";
+
+                return (
+                  <Box
+                    key={gameNum}
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      backgroundColor: isFilled ? playerColor : "transparent",
+                      border: `2px solid ${
+                        isFilled ? playerColor : GOLD_COLOR
+                      }`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {isFilled && (
+                      <Typography
+                        sx={{
+                          fontSize: 10,
+                          fontWeight: "bold",
+                          color: "#fff",
+                          textAlign: "center",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {winnerInitial}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          ) : (
+            <Typography
+              sx={{
+                fontSize: 11,
+                color: GOLD_COLOR,
+                opacity: 0.7,
+                textAlign: "center",
+              }}
+            >
+              {formatDateTime(match.finishedAt)}
+            </Typography>
+          )}
         </Box>
 
         {/* Player 2 Name - aligned with Player 2 icon */}

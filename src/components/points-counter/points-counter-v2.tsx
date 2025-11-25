@@ -4,10 +4,20 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  IconButton,
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import {
+  IconDice1,
+  IconDice2,
+  IconDice3,
+  IconDice4,
+  IconDice5,
+  IconDice6,
+} from "@tabler/icons-react";
+import confetti from "canvas-confetti";
+import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { LegendName } from "../../helpers/legends";
@@ -28,6 +38,7 @@ const FONT_SIZE_PLAYER_NAME = 18;
 const FONT_SIZE_BUTTON_SYMBOL = 48;
 const FONT_SIZE_CENTER_SCORE = 48;
 const FONT_SIZE_CENTER_NAME = 14;
+const FONT_SIZE_DICE_RESULT = 18;
 
 const CENTER_SCORE_SIZE = 64;
 const CENTER_SCORE_BORDER_WIDTH = 3;
@@ -62,11 +73,89 @@ const CenterScoreDisplay = ({
   isRotated = false,
 }: CenterScoreDisplayProps) => {
   const [legendDialogOpen, setLegendDialogOpen] = useState(false);
-  const { setPlayerLegend } = usePointsCounterStore(
-    useShallow((state) => ({
-      setPlayerLegend: state.setPlayerLegend,
-    }))
+  const [isRolling, setIsRolling] = useState(false);
+  const { setPlayerLegend, clearDice, upperLimit, bestOf, seriesWins } =
+    usePointsCounterStore(
+      useShallow((state) => ({
+        setPlayerLegend: state.setPlayerLegend,
+        clearDice: state.clearDice,
+        upperLimit: state.upperLimit,
+        bestOf: state.bestOf,
+        seriesWins: state.seriesWins,
+      }))
+    );
+
+  // Subscribe only to other players' points for winner/loser calculation
+  // Use a selector that extracts just the points we need
+  const otherPlayersMaxPoints = usePointsCounterStore(
+    useShallow((state) => {
+      const otherPlayers = state.players.filter((p) => p.id !== player.id);
+      return Math.max(...otherPlayers.map((p) => p.points), 0);
+    })
   );
+
+  // Memoize winner/loser calculation
+  const { isWinner, isLoser, displayColor } = useMemo(() => {
+    const isWinner = player.points >= upperLimit;
+    const hasWinner = isWinner || otherPlayersMaxPoints >= upperLimit;
+    const isLoser = hasWinner && !isWinner && player.points < upperLimit;
+
+    const displayColor = isWinner
+      ? GREEN_COLOR
+      : isLoser
+      ? RED_COLOR
+      : GOLD_COLOR;
+
+    return { isWinner, isLoser, displayColor };
+  }, [player.points, upperLimit, otherPlayersMaxPoints]);
+
+  // Trigger animation when diceResult changes
+  useEffect(() => {
+    if (player.diceResult !== null) {
+      setIsRolling(true);
+      const timer = setTimeout(() => {
+        setIsRolling(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [player.diceResult]);
+
+  // Trigger confetti when player wins
+  useEffect(() => {
+    if (isWinner) {
+      // Confetti animation
+      const duration = 3000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+      function randomInRange(min: number, max: number) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          return;
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+        });
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+        });
+      }, 250);
+
+      return () => clearInterval(interval);
+    }
+  }, [isWinner]);
 
   const handleLegendClick = () => {
     setLegendDialogOpen(true);
@@ -75,6 +164,21 @@ const CenterScoreDisplay = ({
   const handleSelectLegend = (legend: LegendName | null) => {
     setPlayerLegend(player.id, legend);
   };
+
+  const handleDiceResultClick = () => {
+    // Clear dice result when clicked
+    clearDice(player.id);
+  };
+
+  // Calculate number of circles to show (wins needed, not total games)
+  // BO1 = 1 win needed, BO3 = 2 wins needed, BO5 = 3 wins needed
+  const numCircles = Math.ceil(bestOf / 2);
+  const playerWins = seriesWins[player.id] || 0;
+  
+  // If player has reached max points in current game, count it as a win for display
+  // (but don't save until next game is pressed)
+  const currentGameWin = isWinner ? 1 : 0;
+  const totalWinsForDisplay = playerWins + currentGameWin;
 
   return (
     <>
@@ -95,12 +199,43 @@ const CenterScoreDisplay = ({
             ...(isRotated && { transform: "rotate(180deg)" }),
           }}
         >
+          {/* Victory Circles - Show for all bestOf values */}
+          {numCircles > 0 && (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 0.5,
+                marginRight: 1,
+              }}
+            >
+              {Array.from({ length: numCircles }, (_, index) => {
+                const circleIndex = numCircles - 1 - index; // Reverse order (bottom to top)
+                const isFilled = circleIndex < totalWinsForDisplay;
+                return (
+                  <Box
+                    key={circleIndex}
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      backgroundColor: isFilled ? GREEN_COLOR : "transparent",
+                      border: `2px solid ${isFilled ? GREEN_COLOR : GOLD_COLOR}`,
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          )}
+
           {/* Legend Icon - Always displayed, clickable */}
           <LegendIcon
             legend={player.legend}
             size={CENTER_SCORE_SIZE}
             onClick={handleLegendClick}
             showPlaceholder={true}
+            borderColor={displayColor}
           />
           <Box
             sx={{
@@ -113,16 +248,22 @@ const CenterScoreDisplay = ({
               minHeight: CENTER_SCORE_SIZE,
               borderRadius: 1,
               backgroundColor: "transparent",
-              border: `${CENTER_SCORE_BORDER_WIDTH}px double ${GOLD_COLOR}`,
+              border: `${CENTER_SCORE_BORDER_WIDTH}px double ${displayColor}`,
+              transition: "border-color 0.3s ease-in-out",
             }}
           >
             <Typography
               sx={{
                 fontSize: FONT_SIZE_CENTER_SCORE,
                 fontWeight: "bold",
-                color: GOLD_COLOR,
+                color: displayColor,
                 textAlign: "center",
                 lineHeight: 1,
+                transition: "color 0.3s ease-in-out",
+                textDecoration:
+                  player.points === 6 || player.points === 9
+                    ? "underline"
+                    : "none",
               }}
             >
               {player.points}
@@ -146,15 +287,25 @@ const PlayerControls = ({
   player,
   isMirrored = false,
 }: PlayerControlsProps) => {
-  const { incrementPoints, decrementPoints, upperLimit, setPlayerName } =
-    usePointsCounterStore(
-      useShallow((state) => ({
-        incrementPoints: state.incrementPoints,
-        decrementPoints: state.decrementPoints,
-        upperLimit: state.upperLimit,
-        setPlayerName: state.setPlayerName,
-      }))
-    );
+  const {
+    incrementPoints,
+    decrementPoints,
+    setPoints,
+    rollDice,
+    clearDice,
+    upperLimit,
+    setPlayerName,
+  } = usePointsCounterStore(
+    useShallow((state) => ({
+      incrementPoints: state.incrementPoints,
+      decrementPoints: state.decrementPoints,
+      setPoints: state.setPoints,
+      rollDice: state.rollDice,
+      clearDice: state.clearDice,
+      upperLimit: state.upperLimit,
+      setPlayerName: state.setPlayerName,
+    }))
+  );
 
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const [editedName, setEditedName] = useState(player.name);
@@ -174,6 +325,52 @@ const PlayerControls = ({
     incrementPoints(player.id);
   };
 
+  const handleDiceClick = () => {
+    rollDice(player.id);
+  };
+
+  const [isRolling, setIsRolling] = useState(false);
+
+  // Trigger animation whenever diceResult is set (even if same value)
+  // Use diceRollCount to ensure animation plays even when result is the same
+  useEffect(() => {
+    if (player.diceResult !== null) {
+      setIsRolling(true);
+      const timer = setTimeout(() => {
+        setIsRolling(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [player.diceResult, player.diceRollCount]);
+
+  const handleDiceResultClick = () => {
+    clearDice(player.id);
+  };
+
+  // Subscribe only to other players' max points for winner/loser calculation
+  // Use a selector that extracts just the max points we need
+  const otherPlayersMaxPoints = usePointsCounterStore(
+    useShallow((state) => {
+      const otherPlayers = state.players.filter((p) => p.id !== player.id);
+      return Math.max(...otherPlayers.map((p) => p.points), 0);
+    })
+  );
+
+  // Memoize winner/loser calculation
+  const { isWinner, isLoser, displayColor } = useMemo(() => {
+    const isWinner = player.points >= upperLimit;
+    const hasWinner = isWinner || otherPlayersMaxPoints >= upperLimit;
+    const isLoser = hasWinner && !isWinner && player.points < upperLimit;
+
+    const displayColor = isWinner
+      ? GREEN_COLOR
+      : isLoser
+      ? RED_COLOR
+      : GOLD_COLOR;
+
+    return { isWinner, isLoser, displayColor };
+  }, [player.points, upperLimit, otherPlayersMaxPoints]);
+
   return (
     <Box
       sx={{
@@ -182,14 +379,80 @@ const PlayerControls = ({
         transform: isMirrored ? "rotate(180deg)" : "none",
       }}
     >
-      {/* Player Name */}
+      {/* Dice Result Display - Always reserve space */}
+      <Box
+        onClick={player.diceResult !== null ? handleDiceResultClick : undefined}
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          paddingX: SPACING_PADDING_X,
+          minHeight: 40 + FONT_SIZE_DICE_RESULT * 1.5, // Match height when visible (40px icon + text + padding)
+          cursor: player.diceResult !== null ? "pointer" : "default",
+        }}
+      >
+        {player.diceResult !== null && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              "&:hover": {
+                opacity: 0.7,
+              },
+            }}
+          >
+            <Box
+              key={player.diceRollCount || 0}
+              sx={{
+                animation: isRolling ? "diceRoll 0.5s ease-in-out" : "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {player.diceResult === 1 && (
+                <IconDice1 size={40} color={GOLD_COLOR} />
+              )}
+              {player.diceResult === 2 && (
+                <IconDice2 size={40} color={GOLD_COLOR} />
+              )}
+              {player.diceResult === 3 && (
+                <IconDice3 size={40} color={GOLD_COLOR} />
+              )}
+              {player.diceResult === 4 && (
+                <IconDice4 size={40} color={GOLD_COLOR} />
+              )}
+              {player.diceResult === 5 && (
+                <IconDice5 size={40} color={GOLD_COLOR} />
+              )}
+              {player.diceResult === 6 && (
+                <IconDice6 size={40} color={GOLD_COLOR} />
+              )}
+            </Box>
+            <Typography
+              sx={{
+                fontSize: FONT_SIZE_DICE_RESULT,
+                fontWeight: "bold",
+                color: GOLD_COLOR,
+                textAlign: "center",
+                animation: isRolling ? "diceRoll 0.5s ease-in-out" : "none",
+              }}
+            >
+              {player.diceResult}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Player Name and Dice */}
       <Box
         sx={{
           display: "flex",
-          justifyContent: "flex-start",
+          justifyContent: "space-between",
           alignItems: "center",
-          paddingLeft: SPACING_PADDING_X,
-          paddingBottom: SPACING_PADDING_Y_SMALL,
+          paddingX: SPACING_PADDING_X,
+          paddingBottom: 2,
         }}
       >
         <Typography
@@ -200,8 +463,9 @@ const PlayerControls = ({
           sx={{
             fontSize: FONT_SIZE_PLAYER_NAME,
             fontWeight: "bold",
-            color: GOLD_COLOR,
+            color: displayColor,
             cursor: "pointer",
+            transition: "color 0.3s ease-in-out",
             "&:hover": {
               opacity: 0.7,
             },
@@ -209,6 +473,19 @@ const PlayerControls = ({
         >
           {player.name}
         </Typography>
+        <IconButton
+          onClick={handleDiceClick}
+          sx={{
+            color: GOLD_COLOR,
+            padding: 0,
+            "&:hover": {
+              backgroundColor: "rgba(188, 154, 83, 0.1)",
+            },
+          }}
+          title="Roll Dice"
+        >
+          <IconDice3 size={27} />
+        </IconButton>
       </Box>
 
       {/* Points Indicator */}
@@ -223,6 +500,7 @@ const PlayerControls = ({
         <PointsIndicatorHorizontal
           currentPoints={player.points}
           upperLimit={upperLimit}
+          onPointClick={(points) => setPoints(player.id, points)}
         />
       </Box>
 
@@ -457,7 +735,7 @@ export const PointsCounterV2 = ({ players }: PointsCounterV2Props) => {
           justifyContent: "center",
           alignItems: "center",
           gap: SPACING_GAP_MEDIUM,
-          height: "25vh",
+          height: "10vh",
         }}
       >
         {/* Bottom Player Score - Left */}

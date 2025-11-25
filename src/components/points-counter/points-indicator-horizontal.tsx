@@ -4,11 +4,13 @@ import { GOLD_COLOR, WHITE_COLOR } from "./constants";
 type PointsIndicatorHorizontalProps = {
   currentPoints: number;
   upperLimit: number;
+  onPointClick?: (points: number) => void;
 };
 
 export const PointsIndicatorHorizontal = ({
   currentPoints,
   upperLimit,
+  onPointClick,
 }: PointsIndicatorHorizontalProps) => {
   // Generate array of numbers from 0 to upperLimit
   const numbers = Array.from({ length: upperLimit + 1 }, (_, i) => i);
@@ -19,6 +21,7 @@ export const PointsIndicatorHorizontal = ({
   const renderCircle = (num: number, isActive: boolean) => (
     <Box
       key={`circle-${num}`}
+      onClick={() => onPointClick?.(num)}
       sx={{
         display: "flex",
         justifyContent: "center",
@@ -32,6 +35,14 @@ export const PointsIndicatorHorizontal = ({
         border: isActive
           ? `1px solid ${WHITE_COLOR}`
           : `1px solid ${GOLD_COLOR}`,
+        cursor: onPointClick ? "pointer" : "default",
+        "&:hover": onPointClick
+          ? {
+              backgroundColor: isActive
+                ? GOLD_COLOR
+                : "rgba(188, 154, 83, 0.2)",
+            }
+          : {},
       }}
     >
       <Typography

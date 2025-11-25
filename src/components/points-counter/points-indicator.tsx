@@ -4,11 +4,13 @@ import { GOLD_COLOR, WHITE_COLOR } from "./constants";
 type PointsIndicatorProps = {
   currentPoints: number;
   upperLimit: number;
+  onPointClick?: (points: number) => void;
 };
 
 export const PointsIndicator = ({
   currentPoints,
   upperLimit,
+  onPointClick,
 }: PointsIndicatorProps) => {
   // Always show 0-8 in the first column
   const firstColumnNumbers = Array.from({ length: 9 }, (_, i) => 8 - i); // 8 to 0
@@ -51,6 +53,7 @@ export const PointsIndicator = ({
   const renderCircle = (num: number, isActive: boolean, index: number) => (
     <Box
       key={`circle-${num}-${index}`}
+      onClick={() => onPointClick?.(num)}
       sx={{
         display: "flex",
         justifyContent: "center",
@@ -62,6 +65,12 @@ export const PointsIndicator = ({
         borderRadius: "50%",
         backgroundColor: isActive ? GOLD_COLOR : "transparent",
         border: isActive ? `1px solid ${WHITE_COLOR}` : `1px solid ${GOLD_COLOR}`,
+        cursor: onPointClick ? "pointer" : "default",
+        "&:hover": onPointClick
+          ? {
+              backgroundColor: isActive ? GOLD_COLOR : "rgba(188, 154, 83, 0.2)",
+            }
+          : {},
       }}
     >
       <Typography
@@ -130,6 +139,7 @@ export const PointsIndicator = ({
           if (!isVisible) {
             // Render empty circle with transparent border to maintain spacing
             // Use index as key to ensure stable rendering when upperLimit changes
+            // Not clickable since it's a placeholder
             return (
               <Box
                 key={`empty-${index}`}
@@ -144,6 +154,7 @@ export const PointsIndicator = ({
                   borderRadius: "50%",
                   backgroundColor: "transparent",
                   border: "1px solid transparent", // Transparent border maintains spacing
+                  pointerEvents: "none", // Make sure placeholder circles aren't clickable
                 }}
               />
             );
